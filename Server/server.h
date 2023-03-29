@@ -15,7 +15,8 @@
 #define GAME_MAX_TRACKS 8
 
 #define START_SPEED TEXT("FroggerGame\\StartSpeed")
-
+#define START_SPEED_ATT TEXT("SPEED_VALUE")
+#define COUT_SPEED TEXT("[SERVER] Insira a velocidade inicial dos carros :")
 
 typedef struct game {	
 	INT num_tracks;
@@ -23,7 +24,7 @@ typedef struct game {
 }game;
 
 
-void unicodeInitializer();
-game fillGameStruct();
+void UNICODE_INITIALIZER();
+game FillRegistryValues();
 
 #endif
