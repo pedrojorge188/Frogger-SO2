@@ -6,10 +6,33 @@
 #include "server.h"
 
 
+DWORD WINAPI input_thread(LPVOID lpParam) {
+    thParams* p = (thParams*)lpParam;
+
+    TCHAR cmd[50];
+
+    while (p->out_flag == 0) {
+        
+        _tscanf_s(_T("%s"), &cmd, sizeof(cmd));
+
+         if (wcscmp(cmd,_T("exit")) == 0) {
+
+            p->out_flag = 1;
+            ExitThread(1);
+        }
+    }
+
+    ExitThread(1);
+}
 
 int _tmain(int argc, TCHAR* argv[]) {
 
     game gameData;
+    thParams structTh[MAX_THREADS];
+
+    DWORD dwIDThreads[MAX_THREADS];
+    HANDLE hThreads[MAX_THREADS];
+
     UNICODE_INITIALIZER();
 
     gameData = FillRegistryValues();
@@ -18,6 +41,12 @@ int _tmain(int argc, TCHAR* argv[]) {
     _tprintf(_T("[SERVER] Número de estradas : %d\n"), gameData.num_tracks);
     _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"),gameData.vehicle_speed);
     
+    //Criação das threads
+
+    structTh[0].out_flag = 0;
+    hThreads[0] = CreateThread(NULL,0,input_thread,&structTh[0],0,&dwIDThreads[0]);
+
+    WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
     return 0;
 }
 
@@ -35,7 +64,7 @@ game FillRegistryValues() {
 
         DWORD size = sizeof(wcValue);
         LONG err = RegGetValue(key, NULL, N_TRACKS_ATT, RRF_RT_ANY, NULL, pvData, &size);
-
+        
         if (err == ERROR_SUCCESS) {
             DWORD convert = *(DWORD*)pvData;
             gameData.num_tracks = (INT)convert;
@@ -52,7 +81,7 @@ game FillRegistryValues() {
             _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
             gameData.num_tracks = (INT)dwValue;
 
-        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);
+        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1); 
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
 
