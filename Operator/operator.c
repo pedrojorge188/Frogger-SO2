@@ -35,13 +35,17 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 }
 
 int _tmain(int argc, TCHAR* argv[]) {
+       
+    UNICODE_INITIALIZER();
+
+    if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
+        _tprintf(L"O servidor não está a correr");
+        ExitProcess(1);
+    }
 
     thParams structTh = { 0 };
-
     DWORD dwIDThreads[MAX_THREADS];
     HANDLE hThreads[MAX_THREADS];
-
-    UNICODE_INITIALIZER();
 
     _tprintf(TEXT("-----------OPERATOR--------------\n"));
 

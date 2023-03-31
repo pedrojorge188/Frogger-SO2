@@ -9,7 +9,7 @@
 
 
 #define TAM 40
-
+#define SERVER_SEMAPHORE TEXT("ServerInstances")
 #define MAX_THREADS 1
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
