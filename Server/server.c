@@ -87,10 +87,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     CloseHandle(structTh.mutex);
 
-
-    _tprintf(_T("[SERVER] Número de estradas : %d\n"), gameData.num_tracks);
-    _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), gameData.vehicle_speed);
-
     return 0;
 }
 
