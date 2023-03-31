@@ -17,6 +17,8 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
        
         _tprintf(L"->");
 
+        Sleep(1000);
+
         WaitForSingleObject(p->mutex, INFINITE);
 
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
@@ -64,6 +66,19 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     ExitThread(1);
 }
 
+DWORD WINAPI game_manager(LPVOID lpParam) {
+    thParams* p = (thParams*)lpParam;
+
+    WaitForSingleObject(p->mutex, INFINITE);
+
+         FillGameDefaults(p->gameData);
+
+    ReleaseMutex(p->mutex);
+
+    ExitThread(2);
+}
+
+
 int _tmain(int argc, TCHAR* argv[]) {
 
     UNICODE_INITIALIZER();
@@ -103,15 +118,57 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
+   
 
-    hThreads[0] = CreateThread(NULL,0,input_thread,& structTh, 0, &dwIDThreads[0]);
-
+    hThreads[0] = CreateThread(NULL,0,input_thread, &structTh, 0, &dwIDThreads[0]);
+    hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, 0, &dwIDThreads[0]);
+  
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
 
     CloseHandle(structTh.mutex);
     CloseHandle(verifySemaphore);
 
     return 0;
+}
+
+int FillGameDefaults(game * g){
+
+    int n_cars_per_track = rand()%MAX_VEHICLES;
+
+    memset(g->table, '´', sizeof(g->table));
+
+    //colocar os sapos->META 1
+    
+    for (int i = 0; i < MAX_FROGS; i++) {
+        g->frogs[i].x = 0;
+        g->frogs[i].y = rand() % H_GAME;
+        g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
+        _tprintf(L"\nSAPO(%d):(linha->%d | coluna->%d)\n", i, g->frogs[i].x, g->frogs[i].y);
+    }
+   
+    _tprintf(_T("\n"));
+
+    //Colocar os carros
+
+    for (int i = 1; i < g->num_tracks-1; i++) {
+        for (int j = 0; j < n_cars_per_track; j++) {
+            g->cars[i][j].x = i + 1;
+            g->cars[i][j].y = rand() % W_GAME;
+            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
+            _tprintf(L"CARRO(%i):(linha->%d | coluna->%d)\n", i, g->cars[i][j].x, g->cars[i][j].y);
+        }
+    }
+
+    _tprintf(_T("\n"));
+
+    for (int r = 0; r < H_GAME; r++) {
+        for (int c = 0; c < W_GAME; c++) {
+            _tprintf(L"%c", g->table[r][c]);
+        }
+        _tprintf(_T("\n"));
+    }
+
+    return 1;
 }
 
 int ChangeNumTracks(INT value) {
