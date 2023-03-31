@@ -68,9 +68,23 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     UNICODE_INITIALIZER();
 
-    if (OpenMutex(MUTEX_ALL_ACCESS, FALSE, SERVER_MUTEX) != NULL) {
-        _tprintf(TIMEOUT_MSG); Sleep(TIMEOUT_10_SECONDS);
-        return 0;
+    HANDLE verifySemaphore;
+    DWORD dwWaitResult;
+
+    verifySemaphore = CreateSemaphore(NULL, 1, 1, SERVER_SEMAPHORE);
+
+    if (verifySemaphore == NULL){
+        verifySemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE);
+        if (verifySemaphore == NULL){
+            _tprintf("Erro ao criar o semáforo do servidor\n");
+            return 1;
+        }
+    }
+
+    dwWaitResult = WaitForSingleObject(verifySemaphore, 0L);
+    if (dwWaitResult != WAIT_OBJECT_0) {
+        _tprintf(SERVER_RUNNING_MSG); Sleep(TIMEOUT);
+        return -1;
     }
     
     game gameData;
@@ -84,7 +98,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     _tprintf(TEXT("-----------SERVER--------------\n"));
     
 
-    HANDLE serverMutex = CreateMutex(NULL, FALSE, SERVER_MUTEX);
+    HANDLE serverMutex = CreateMutex(NULL, FALSE, NULL);
 
     structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
@@ -94,6 +108,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
 
     CloseHandle(structTh.mutex);
+    CloseHandle(verifySemaphore);
 
     return 0;
 }

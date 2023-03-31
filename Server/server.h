@@ -9,9 +9,10 @@
 
 
 #define TAM 40
-#define TIMEOUT_10_SECONDS 10000
-#define TIMEOUT_MSG TEXT("Já Existe um servidor em atividade!")
-#define SERVER_MUTEX TEXT("ServerMutex")
+#define TIMEOUT 10000
+#define SERVER_RUNNING_MSG TEXT("Já Existe um servidor em atividade!")
+
+#define SERVER_SEMAPHORE TEXT("ServerInstances")
 #define N_TRACKS TEXT("FroggerGame\\NumberTracks")
 #define N_TRACKS_ATT TEXT("TRACKS_VALUE")
 #define TRACK_COMMAND _T("tracks")
