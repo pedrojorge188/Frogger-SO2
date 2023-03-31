@@ -66,19 +66,27 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
 int _tmain(int argc, TCHAR* argv[]) {
 
+    UNICODE_INITIALIZER();
+
+    if (OpenMutex(MUTEX_ALL_ACCESS, FALSE, SERVER_MUTEX) != NULL) {
+        _tprintf(TIMEOUT_MSG); Sleep(TIMEOUT_10_SECONDS);
+        return 0;
+    }
+    
     game gameData;
     thParams structTh = { 0 };
 
     DWORD dwIDThreads[MAX_THREADS];
     HANDLE hThreads[MAX_THREADS];
 
-    UNICODE_INITIALIZER();
-
     gameData = FillRegistryValues();
     
     _tprintf(TEXT("-----------SERVER--------------\n"));
     
-    structTh.mutex = CreateMutex(NULL, FALSE, NULL);
+
+    HANDLE serverMutex = CreateMutex(NULL, FALSE, SERVER_MUTEX);
+
+    structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
 
     hThreads[0] = CreateThread(NULL,0,input_thread,& structTh, 0, &dwIDThreads[0]);
