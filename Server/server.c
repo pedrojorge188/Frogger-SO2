@@ -19,7 +19,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
         WaitForSingleObject(p->mutex, INFINITE);
 
-        if (_tscanf_s(_T("%s %d"), command, 50, &value) == 2) {
+        if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
 
             if (wcscmp(command, _T("exit")) == 0) {
                 ExitThread(1);
@@ -48,7 +48,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 if (ChangeSpeed(value) == 1)
                     _tprintf(_T("[GLOBAL] Velocidade inícial das viaturas alterado!"));
             }
-            else if(wcscmp(command, _T("see")) == 0) {
+            else if(wcscmp(command, _T("list")) == 0) {
 
                 _tprintf(_T("[SERVER] Número de estradas : %d\n"), p->gameData->num_tracks);
                 _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
@@ -71,17 +71,18 @@ int _tmain(int argc, TCHAR* argv[]) {
     HANDLE verifySemaphore;
     DWORD dwWaitResult;
 
-    verifySemaphore = CreateSemaphore(NULL, 1, 1, SERVER_SEMAPHORE);
+    verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
 
     if (verifySemaphore == NULL){
         verifySemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE);
         if (verifySemaphore == NULL){
-            _tprintf("Erro ao criar o semáforo do servidor\n");
+            _tprintf("Erro ao Abrir o semáforo do servidor\n");
             return 1;
         }
     }
 
     dwWaitResult = WaitForSingleObject(verifySemaphore, 0L);
+
     if (dwWaitResult != WAIT_OBJECT_0) {
         _tprintf(SERVER_RUNNING_MSG); Sleep(TIMEOUT);
         return -1;

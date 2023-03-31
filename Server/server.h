@@ -9,10 +9,12 @@
 
 
 #define TAM 40
-#define TIMEOUT 10000
-#define SERVER_RUNNING_MSG TEXT("Já Existe um servidor em atividade!")
 
+#define TIMEOUT 10000
+#define SERVER_LIMIT_USERS 1
+#define SERVER_RUNNING_MSG TEXT("Já Existe um servidor em atividade!")
 #define SERVER_SEMAPHORE TEXT("ServerInstances")
+
 #define N_TRACKS TEXT("FroggerGame\\NumberTracks")
 #define N_TRACKS_ATT TEXT("TRACKS_VALUE")
 #define TRACK_COMMAND _T("tracks")
@@ -24,8 +26,11 @@
 #define COUT_SPEED TEXT("[SERVER] Insira a velocidade inicial dos carros :")
 #define SPEED_COMMAND _T("speed")
 
-#define MAX_THREADS 1
+#define MAX_THREADS 2
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
+
+#define MAX
+
 
 typedef struct game {	
 	INT num_tracks;
