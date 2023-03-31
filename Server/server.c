@@ -9,17 +9,56 @@
 DWORD WINAPI input_thread(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
-    TCHAR cmd[50];
+    TCHAR command[50];
+    INT value;
 
-    while (p->out_flag == 0) {
-        
-        _tscanf_s(_T("%s"), &cmd, sizeof(cmd));
 
-         if (wcscmp(cmd,_T("exit")) == 0) {
+    while (1) {
+       
+        _tprintf(L"->");
 
-            p->out_flag = 1;
-            ExitThread(1);
+        WaitForSingleObject(p->mutex, INFINITE);
+
+        if (_tscanf_s(_T("%s %d"), command, 50, &value) == 2) {
+
+            if (wcscmp(command, _T("exit")) == 0) {
+                ExitThread(1);
+            }
+            else if (wcscmp(command, _T("tracks")) == 0) {
+
+                if (value <= 8 && value > 0) {
+
+                    p->gameData->num_tracks = value;
+                    _tprintf(_T("[SERVER] Número de estradas alterado! (tracks:%d)\n"),p->gameData->num_tracks);
+
+                    if (ChangeNumTracks(value) == 1) 
+                        _tprintf(_T("[GLOBAL] Número de estradas alterado!"));
+                    
+                }
+                else {
+                    _tprintf(_T("[SERVER] Valor Inválido\n"));
+                }
+
+            }
+            else if (wcscmp(command, _T("vspeed")) == 0) {
+
+                p->gameData->vehicle_speed = value;
+                _tprintf(_T("[SERVER] Velocidade inícial das viaturas alterado! (vspeed:%d)\n"), p->gameData->vehicle_speed);
+
+                if (ChangeSpeed(value) == 1)
+                    _tprintf(_T("[GLOBAL] Velocidade inícial das viaturas alterado!"));
+            }
+            else if(wcscmp(command, _T("see")) == 0) {
+
+                _tprintf(_T("[SERVER] Número de estradas : %d\n"), p->gameData->num_tracks);
+                _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
+                
+            }
+
         }
+
+        ReleaseMutex(p->mutex);
+
     }
 
     ExitThread(1);
@@ -28,7 +67,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 int _tmain(int argc, TCHAR* argv[]) {
 
     game gameData;
-    thParams structTh[MAX_THREADS];
+    thParams structTh = { 0 };
 
     DWORD dwIDThreads[MAX_THREADS];
     HANDLE hThreads[MAX_THREADS];
@@ -38,16 +77,71 @@ int _tmain(int argc, TCHAR* argv[]) {
     gameData = FillRegistryValues();
     
     _tprintf(TEXT("-----------SERVER--------------\n"));
-    _tprintf(_T("[SERVER] Número de estradas : %d\n"), gameData.num_tracks);
-    _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"),gameData.vehicle_speed);
     
-    //Criação das threads
+    structTh.mutex = CreateMutex(NULL, FALSE, NULL);
+    structTh.gameData = &gameData;
 
-    structTh[0].out_flag = 0;
-    hThreads[0] = CreateThread(NULL,0,input_thread,&structTh[0],0,&dwIDThreads[0]);
+    hThreads[0] = CreateThread(NULL,0,input_thread,& structTh, 0, &dwIDThreads[0]);
 
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
+
+    CloseHandle(structTh.mutex);
+
+
+    _tprintf(_T("[SERVER] Número de estradas : %d\n"), gameData.num_tracks);
+    _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), gameData.vehicle_speed);
+
     return 0;
+}
+
+int ChangeNumTracks(INT value) {
+
+    HKEY key;
+    DWORD dwValue;
+    int ret = 0;
+
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, KEY_WRITE, &key) == ERROR_SUCCESS) {
+
+        DWORD newValue = (DWORD)value;
+
+        LONG err = RegSetValueEx(key, N_TRACKS_ATT, 0, REG_DWORD, &newValue, sizeof(newValue));
+
+        if (err != ERROR_SUCCESS) {
+            _tprintf(_T("[SERVER] ERRO ao atualizar os valores do registry !"));
+            ret = 1;
+        }
+
+
+    }
+
+    RegCloseKey(key);
+    return ret;
+        
+}
+
+int ChangeSpeed(INT value) {
+
+    HKEY key;
+    DWORD dwValue;
+    int ret = 0;
+
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, START_SPEED, 0, KEY_WRITE, &key) == ERROR_SUCCESS) {
+
+        DWORD newValue = (DWORD)value;
+
+        LONG err = RegSetValueEx(key, START_SPEED_ATT, 0, REG_DWORD, &newValue, sizeof(newValue));
+
+        if (err != ERROR_SUCCESS) {
+            _tprintf(_T("[SERVER] ERRO ao atualizar os valores do registry !"));
+            ret = 1;
+        }
+
+
+    }
+
+    RegCloseKey(key);
+    return ret;
+
 }
 
 game FillRegistryValues() {
