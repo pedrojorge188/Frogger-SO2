@@ -14,8 +14,6 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
 
     while (1) {
-        Sleep(1000);
-
         WaitForSingleObject(p->mutex, INFINITE);
         _tprintf(L"->");
 
@@ -29,7 +27,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
                 if (value <= 8 && value > 0) {
 
-                    _tprintf(_T("[SERVER] Número de estradas alterado! (tracks:%d)\n"),p->gameData->num_tracks);
+                    _tprintf(_T("[SERVER] Número de estradas inicial alterado! (tracks:%d)\n"),value);
 
                     if (ChangeNumTracks(value) == 1) 
                         _tprintf(_T("[GLOBAL] Número de estradas alterado!"));
@@ -42,17 +40,34 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             }
             else if (wcscmp(command, _T("vspeed")) == 0) {
 
-                _tprintf(_T("[SERVER] Velocidade inícial das viaturas alterado! (vspeed:%d)\n"), p->gameData->vehicle_speed);
+                _tprintf(_T("[SERVER] Velocidade inícial das viaturas alterado! (vspeed:%d)\n"), value);
 
                 if (ChangeSpeed(value) == 1)
                     _tprintf(_T("[GLOBAL] Velocidade inícial das viaturas alterado!"));
             }
             else if(wcscmp(command, _T("list")) == 0) {
 
-                _tprintf(_T("[SERVER] Número de estradas : %d\n"), p->gameData->num_tracks);
+                _tprintf(_T("[SERVER] Número de estradas Inicial: %d\n"), p->gameData->num_tracks);
                 _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
                 
             }
+            else if (wcscmp(command, _T("pause")) == 0) {
+
+                _tprintf(L"Jogo Pausado!\n");
+
+            }
+            else if (wcscmp(command, _T("resume")) == 0) {
+                 
+                _tprintf(L"Jogo Retornado\n");
+
+            }
+            else if (wcscmp(command, _T("restart")) == 0) {
+
+                _tprintf(L"Jogo reiniciado\n");
+
+            }
+
+
             ReleaseMutex(p->mutex);
         }
 
@@ -64,15 +79,19 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
+    _tprintf(L"Jogo Iniciado!");
+
     WaitForSingleObject(p->mutex, INFINITE);
         FillGameDefaults(p->gameData);
     ReleaseMutex(p->mutex);
     
     while (out_flag == 0) {
         Sleep(p->gameData->vehicle_speed*1000);
+
         WaitForSingleObject(p->mutex, INFINITE);
-        moveCars(p->gameData);
+            moveCars(p->gameData);
         ReleaseMutex(p->mutex);
+
     }
 
     ExitThread(2);
@@ -91,7 +110,6 @@ int _tmain(int argc, TCHAR* argv[]) {
     if (verifySemaphore == NULL){
         verifySemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE);
         if (verifySemaphore == NULL){
-            _tprintf("Erro ao Abrir o semáforo do servidor\n");
             return 1;
         }
     }
@@ -110,20 +128,18 @@ int _tmain(int argc, TCHAR* argv[]) {
     HANDLE hThreads[MAX_THREADS];
 
     gameData = FillRegistryValues();
-    
-    _tprintf(TEXT("-----------SERVER--------------\n"));
-    
-
+   
     HANDLE serverMutex = CreateMutex(NULL, FALSE, NULL);
 
     structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
 
     hThreads[0] = CreateThread(NULL,0,input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, 0, &dwIDThreads[0]);
-  
-    WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
+    hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[0]);
+    
+    //ResumeThread(hThreads[1]); /*Resume-se a thread quando receber um cliente*/
 
+    WaitForMultipleObjects(MAX_THREADS, &hThreads, FALSE, INFINITE);
 
     CloseHandle(structTh.mutex);
     CloseHandle(verifySemaphore);
@@ -142,7 +158,6 @@ int FillGameDefaults(game * g){
         g->frogs[i].x = 0;
         g->frogs[i].y = rand() % H_GAME;
         g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
-        //_tprintf(L"\nSAPO(%d):(linha->%d | coluna->%d)\n", i, g->frogs[i].x, g->frogs[i].y);
     }
    
 
@@ -154,7 +169,6 @@ int FillGameDefaults(game * g){
             g->cars[i][j].x = i + 1;
             g->cars[i][j].y = rand() % W_GAME;
             g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
-            //_tprintf(L"CARRO(%i):(linha->%d | coluna->%d)\n", i, g->cars[i][j].x, g->cars[i][j].y);
         }
     }
 
@@ -179,8 +193,8 @@ void moveCars(game* g) {
                 }
             }
             g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
-
         }
+
     }
 
     /*
@@ -331,5 +345,6 @@ void UNICODE_INITIALIZER() {
     _setmode(_fileno(stdout), _O_WTEXT);
     _setmode(_fileno(stderr), _O_WTEXT);
 #endif
+_tprintf(TEXT("-----------SERVER--------------\n"));
 }
 

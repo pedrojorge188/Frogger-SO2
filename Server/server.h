@@ -46,13 +46,16 @@ typedef struct vehicles {
 	int orientation; // 1-> direita para a esquerda, 2-> esquerda para a direita
 } vehicles;
 
-typedef struct game {	
+typedef struct game {
 	frog frogs[MAX_FROGS];
-	vehicles cars[8][MAX_VEHICLES]; //pos na faxa e o id do carro
+	vehicles cars[8][MAX_VEHICLES]; //[pos na faxa][o id do carro]
+
+	int mode; // 1-> Individual 2-> Competição
+
 	char table[H_GAME][W_GAME];
-	int n_cars_per_track;
 	INT num_tracks;
 	INT vehicle_speed;
+	int n_cars_per_track;
 }game;
 
 typedef struct thParams {
