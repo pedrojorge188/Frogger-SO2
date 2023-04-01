@@ -38,7 +38,7 @@ int out_flag = 0;
 
 typedef struct frog {
 	int x, y;
-	int points;
+	int points; // se -1 perdeu o jogo e é desconectado
 }frog;
 
 typedef struct vehicles {
@@ -47,15 +47,13 @@ typedef struct vehicles {
 } vehicles;
 
 typedef struct game {
-	frog frogs[MAX_FROGS];
-	vehicles cars[8][MAX_VEHICLES]; //[pos na faxa][o id do carro]
-
-	int mode; // 1-> Individual 2-> Competição
-
-	char table[H_GAME][W_GAME];
-	INT num_tracks;
-	INT vehicle_speed;
-	int n_cars_per_track;
+	frog frogs[MAX_FROGS];			//Sapos (Clientes)
+	vehicles cars[8][MAX_VEHICLES]; // veiculos[pos na faxa][o id do carro]
+	int mode;				// 1-> Individual 2-> Competição
+	INT num_tracks;			// Numero de estradas
+	INT vehicle_speed;	   // Velocidade dos carros
+	int n_cars_per_track; // Random de numero de carros por track
+	char table[H_GAME][W_GAME]; // Tabela de vizualização para debug
 }game;
 
 typedef struct thParams {

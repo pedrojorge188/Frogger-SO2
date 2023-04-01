@@ -12,13 +12,11 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     TCHAR command[50];
     INT value;
 
-
+    _tprintf(L"->");
+    Sleep(1000);
     while (1) {
         WaitForSingleObject(p->mutex, INFINITE);
-        _tprintf(L"->");
-
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
-
             if (wcscmp(command, _T("exit")) == 0) {
                 out_flag = 1;
                 ExitThread(1);
@@ -79,18 +77,16 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
-    _tprintf(L"Jogo Iniciado!");
-
     WaitForSingleObject(p->mutex, INFINITE);
+        _tprintf(L"Jogo Iniciado!\n");
         FillGameDefaults(p->gameData);
     ReleaseMutex(p->mutex);
     
     while (out_flag == 0) {
         Sleep(p->gameData->vehicle_speed*1000);
 
-        WaitForSingleObject(p->mutex, INFINITE);
-            moveCars(p->gameData);
-        ReleaseMutex(p->mutex);
+        //Ações do jogo em si (Mover carros, verificar posição dos sapos, etc)
+        moveCars(p->gameData);
 
     }
 
@@ -137,9 +133,9 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThreads[0] = CreateThread(NULL,0,input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[0]);
     
-    //ResumeThread(hThreads[1]); /*Resume-se a thread quando receber um cliente*/
+    ResumeThread(hThreads[1]); /*Resume-se a thread quando receber um cliente*/
 
-    WaitForMultipleObjects(MAX_THREADS, &hThreads, FALSE, INFINITE);
+    WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
 
     CloseHandle(structTh.mutex);
     CloseHandle(verifySemaphore);
@@ -205,6 +201,7 @@ void moveCars(game* g) {
         _tprintf(_T("\n"));
     }
     */
+    
 }
 
 int ChangeNumTracks(INT value) {
