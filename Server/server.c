@@ -14,23 +14,21 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
 
     while (1) {
-       
-        _tprintf(L"->");
-
         Sleep(1000);
 
         WaitForSingleObject(p->mutex, INFINITE);
+        _tprintf(L"->");
 
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
 
             if (wcscmp(command, _T("exit")) == 0) {
+                out_flag = 1;
                 ExitThread(1);
             }
             else if (wcscmp(command, _T("tracks")) == 0) {
 
                 if (value <= 8 && value > 0) {
 
-                    p->gameData->num_tracks = value;
                     _tprintf(_T("[SERVER] Número de estradas alterado! (tracks:%d)\n"),p->gameData->num_tracks);
 
                     if (ChangeNumTracks(value) == 1) 
@@ -44,7 +42,6 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             }
             else if (wcscmp(command, _T("vspeed")) == 0) {
 
-                p->gameData->vehicle_speed = value;
                 _tprintf(_T("[SERVER] Velocidade inícial das viaturas alterado! (vspeed:%d)\n"), p->gameData->vehicle_speed);
 
                 if (ChangeSpeed(value) == 1)
@@ -56,10 +53,8 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
                 
             }
-
+            ReleaseMutex(p->mutex);
         }
-
-        ReleaseMutex(p->mutex);
 
     }
 
@@ -70,10 +65,15 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
     WaitForSingleObject(p->mutex, INFINITE);
-
-         FillGameDefaults(p->gameData);
-
+        FillGameDefaults(p->gameData);
     ReleaseMutex(p->mutex);
+    
+    while (out_flag == 0) {
+        Sleep(p->gameData->vehicle_speed*1000);
+        WaitForSingleObject(p->mutex, INFINITE);
+        moveCars(p->gameData);
+        ReleaseMutex(p->mutex);
+    }
 
     ExitThread(2);
 }
@@ -118,12 +118,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
-   
 
     hThreads[0] = CreateThread(NULL,0,input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, 0, &dwIDThreads[0]);
   
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
+
 
     CloseHandle(structTh.mutex);
     CloseHandle(verifySemaphore);
@@ -133,8 +133,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 int FillGameDefaults(game * g){
 
-    int n_cars_per_track = rand()%MAX_VEHICLES;
-
+    g->n_cars_per_track = rand()%MAX_VEHICLES;
     memset(g->table, '´', sizeof(g->table));
 
     //colocar os sapos->META 1
@@ -143,32 +142,55 @@ int FillGameDefaults(game * g){
         g->frogs[i].x = 0;
         g->frogs[i].y = rand() % H_GAME;
         g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
-        _tprintf(L"\nSAPO(%d):(linha->%d | coluna->%d)\n", i, g->frogs[i].x, g->frogs[i].y);
+        //_tprintf(L"\nSAPO(%d):(linha->%d | coluna->%d)\n", i, g->frogs[i].x, g->frogs[i].y);
     }
    
-    _tprintf(_T("\n"));
 
     //Colocar os carros
 
     for (int i = 1; i < g->num_tracks-1; i++) {
-        for (int j = 0; j < n_cars_per_track; j++) {
+        for (int j = 0; j < g->n_cars_per_track; j++) {
+            g->cars[i][j].orientation = rand() % 2;
             g->cars[i][j].x = i + 1;
             g->cars[i][j].y = rand() % W_GAME;
             g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
-            _tprintf(L"CARRO(%i):(linha->%d | coluna->%d)\n", i, g->cars[i][j].x, g->cars[i][j].y);
+            //_tprintf(L"CARRO(%i):(linha->%d | coluna->%d)\n", i, g->cars[i][j].x, g->cars[i][j].y);
         }
     }
 
-    _tprintf(_T("\n"));
+    return 1;
+}
 
+void moveCars(game* g) {
+
+    for (int i = 1; i <g->num_tracks - 1; i++) {
+        for (int j = 0; j < g->n_cars_per_track; j++) {
+            g->table[g->cars[i][j].x][g->cars[i][j].y] = '´';
+            if (g->cars[i][j].orientation == 1) {
+                g->cars[i][j].y += 1;
+                if (g->cars[i][j].y > W_GAME) {
+                    g->cars[i][j].y -= W_GAME;
+                }
+            }
+            else {
+                g->cars[i][j].y -= 1;
+                if (g->cars[i][j].y < 1) {
+                    g->cars[i][j].y += W_GAME;
+                }
+            }
+            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
+
+        }
+    }
+
+    /*
     for (int r = 0; r < H_GAME; r++) {
         for (int c = 0; c < W_GAME; c++) {
             _tprintf(L"%c", g->table[r][c]);
         }
         _tprintf(_T("\n"));
     }
-
-    return 1;
+    */
 }
 
 int ChangeNumTracks(INT value) {

@@ -34,6 +34,8 @@
 #define H_GAME 10 //altura da area de jogo (LINHAS)
 #define MAX_VEHICLES 8
 
+int out_flag = 0;
+
 typedef struct frog {
 	int x, y;
 	int points;
@@ -48,6 +50,7 @@ typedef struct game {
 	frog frogs[MAX_FROGS];
 	vehicles cars[8][MAX_VEHICLES]; //pos na faxa e o id do carro
 	char table[H_GAME][W_GAME];
+	int n_cars_per_track;
 	INT num_tracks;
 	INT vehicle_speed;
 }game;
@@ -60,6 +63,7 @@ typedef struct thParams {
 void UNICODE_INITIALIZER();
 game FillRegistryValues();
 int FillGameDefaults(game * g);
+void moveCars(game * g);
 DWORD __stdcall input_thread(LPVOID lpParam);
 int ChangeNumTracks(INT value);
 int ChangeSpeed(INT value);
