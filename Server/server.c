@@ -12,10 +12,10 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     TCHAR command[50];
     INT value;
 
-    _tprintf(L"->");
-    Sleep(1000);
     while (1) {
         WaitForSingleObject(p->mutex, INFINITE);
+
+        _tprintf(L"->");
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
             if (wcscmp(command, _T("exit")) == 0) {
                 out_flag = 1;
@@ -77,13 +77,11 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
-    WaitForSingleObject(p->mutex, INFINITE);
-        _tprintf(L"Jogo Iniciado!\n");
-        FillGameDefaults(p->gameData);
-    ReleaseMutex(p->mutex);
+    _tprintf(L"Jogo Iniciado!\n");
+    FillGameDefaults(p->gameData);
     
     while (out_flag == 0) {
-        Sleep(p->gameData->vehicle_speed*1000);
+        Sleep(p->gameData->vehicle_speed*150);
 
         //Ações do jogo em si (Mover carros, verificar posição dos sapos, etc)
         moveCars(p->gameData);
@@ -92,7 +90,6 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
     ExitThread(2);
 }
-
 
 int _tmain(int argc, TCHAR* argv[]) {
 
@@ -133,7 +130,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThreads[0] = CreateThread(NULL,0,input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[0]);
     
-    ResumeThread(hThreads[1]); /*Resume-se a thread quando receber um cliente*/
+    ResumeThread(hThreads[1]); 
 
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
 
@@ -145,26 +142,34 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 int FillGameDefaults(game * g){
 
+    srand(time(NULL));
+    int direction = 0;
+
     g->n_cars_per_track = rand()%MAX_VEHICLES;
-    memset(g->table, '´', sizeof(g->table));
+    //g->n_cars_per_track = DEFAULT;
+    if (g->n_cars_per_track == 0)
+        g->n_cars_per_track = DEFAULT;
+
+    memset(g->table, ' ', sizeof(g->table));
 
     //colocar os sapos->META 1
     
     for (int i = 0; i < MAX_FROGS; i++) {
         g->frogs[i].x = 0;
-        g->frogs[i].y = rand() % H_GAME;
+        g->frogs[i].y = rand() % W_GAME;
         g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
     }
    
 
     //Colocar os carros
 
-    for (int i = 1; i < g->num_tracks-1; i++) {
+    for (int i = 0; i < g->num_tracks; i++) {
+        direction = rand() % 2;
         for (int j = 0; j < g->n_cars_per_track; j++) {
-            g->cars[i][j].orientation = rand() % 2;
-            g->cars[i][j].x = i + 1;
+            g->cars[i][j].orientation = direction;
+            g->cars[i][j].x = i+1;
             g->cars[i][j].y = rand() % W_GAME;
-            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
+            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'V';
         }
     }
 
@@ -173,22 +178,22 @@ int FillGameDefaults(game * g){
 
 void moveCars(game* g) {
 
-    for (int i = 1; i <g->num_tracks - 1; i++) {
+    for (int i = 0; i < g->num_tracks; i++) {
         for (int j = 0; j < g->n_cars_per_track; j++) {
-            g->table[g->cars[i][j].x][g->cars[i][j].y] = '´';
+            g->table[g->cars[i][j].x][g->cars[i][j].y] = ' ';
             if (g->cars[i][j].orientation == 1) {
                 g->cars[i][j].y += 1;
-                if (g->cars[i][j].y > W_GAME) {
-                    g->cars[i][j].y -= W_GAME;
+                if (g->cars[i][j].y >= W_GAME) {
+                    g->cars[i][j].y -= W_GAME-2;
                 }
             }
             else {
                 g->cars[i][j].y -= 1;
                 if (g->cars[i][j].y < 1) {
-                    g->cars[i][j].y += W_GAME;
+                    g->cars[i][j].y += W_GAME-2;
                 }
             }
-            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'C';
+            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'V';
         }
 
     }

@@ -33,6 +33,7 @@
 #define W_GAME 20 //largura da area de jogo (COLUNAS)
 #define H_GAME 10 //altura da area de jogo (LINHAS)
 #define MAX_VEHICLES 8
+#define DEFAULT 2
 
 int out_flag = 0;
 
