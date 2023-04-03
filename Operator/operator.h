@@ -10,11 +10,16 @@
 
 #define TAM 40
 #define SERVER_SEMAPHORE TEXT("ServerInstances")
-#define MAX_THREADS 1
+#define MAX_THREADS 2
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
+int out_flag;
+
 typedef struct thParams {
+	HANDLE console;
 	HANDLE mutex;
+	COORD cinput;
+	COORD coutput;
 }thParams;
 
 void UNICODE_INITIALIZER();
