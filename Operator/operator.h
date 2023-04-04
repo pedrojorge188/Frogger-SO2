@@ -15,12 +15,6 @@
 
 int out_flag;
 
-typedef struct thParams {
-	HANDLE console;
-	HANDLE mutex;
-	COORD cinput;
-	COORD coutput;
-}thParams;
 
 void UNICODE_INITIALIZER();
 DWORD __stdcall input_thread(LPVOID lpParam);

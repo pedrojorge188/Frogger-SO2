@@ -15,8 +15,14 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     while (1) {
         WaitForSingleObject(p->mutex, INFINITE);
 
+        COORD position = { 0, 18 };
+        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+
+        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), position);
         _tprintf(L"->");
+
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
+
             if (wcscmp(command, _T("exit")) == 0) {
                 out_flag = 1;
                 ExitThread(1);
@@ -65,7 +71,6 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             }
 
-
             ReleaseMutex(p->mutex);
         }
 
@@ -77,14 +82,28 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
-    _tprintf(L"Jogo Iniciado!\n");
     FillGameDefaults(p->gameData);
-    
-    while (out_flag == 0) {
-        Sleep(p->gameData->vehicle_speed*150);
 
-        //Ações do jogo em si (Mover carros, verificar posição dos sapos, etc)
+    while (out_flag == 0) {
+
         moveCars(p->gameData);
+
+        // O CÓDIGO SEGUINTE È PARA SER IMPLEMENTADO NO OPERATOR
+        COORD position = { 2, 3 };
+        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD written;
+
+        for (int i = 0; i < H_GAME; i++) {
+            for (int j = 0; j < W_GAME; j++) {
+                WCHAR c = p->gameData->table[i][j];
+                WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
+                position.X++;
+            }
+            position.Y++;
+            position.X = 0;
+        }
+
+        Sleep(p->gameData->vehicle_speed * 150);
 
     }
 
@@ -146,7 +165,6 @@ int FillGameDefaults(game * g){
     int direction = 0;
 
     g->n_cars_per_track = rand()%MAX_VEHICLES;
-    //g->n_cars_per_track = DEFAULT;
     if (g->n_cars_per_track == 0)
         g->n_cars_per_track = DEFAULT;
 
@@ -162,7 +180,6 @@ int FillGameDefaults(game * g){
    
 
     //Colocar os carros
-
     for (int i = 0; i < g->num_tracks; i++) {
         direction = rand() % 2;
         for (int j = 0; j < g->n_cars_per_track; j++) {
@@ -177,6 +194,13 @@ int FillGameDefaults(game * g){
 }
 
 void moveCars(game* g) {
+
+    for (int i = 0; i < H_GAME; i++) {
+        for (int j = 0; j < W_GAME; j++) {
+            if (g->table[i][j] != 'V' && g->table[i][j] != 'S')
+                g->table[i][j] = ' ';
+        }
+    }
 
     for (int i = 0; i < g->num_tracks; i++) {
         for (int j = 0; j < g->n_cars_per_track; j++) {
@@ -197,16 +221,7 @@ void moveCars(game* g) {
         }
 
     }
-
-    /*
-    for (int r = 0; r < H_GAME; r++) {
-        for (int c = 0; c < W_GAME; c++) {
-            _tprintf(L"%c", g->table[r][c]);
-        }
-        _tprintf(_T("\n"));
-    }
-    */
-    
+     
 }
 
 int ChangeNumTracks(INT value) {
