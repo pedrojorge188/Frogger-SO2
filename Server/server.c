@@ -24,8 +24,14 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
 
             if (wcscmp(command, _T("exit")) == 0) {
+
+                HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
+                SetEvent(shutDown);
+                CloseHandle(shutDown);
+
                 out_flag = 1;
                 ExitThread(1);
+
             }
             else if (wcscmp(command, _T("tracks")) == 0) {
 
@@ -80,6 +86,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 }
 
 DWORD WINAPI game_manager(LPVOID lpParam) {
+
     thParams* p = (thParams*)lpParam;
 
     FillGameDefaults(p->gameData);
@@ -114,8 +121,10 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     UNICODE_INITIALIZER();
 
-    HANDLE verifySemaphore;
+    HANDLE verifySemaphore, shutDownEvent;
     DWORD dwWaitResult;
+
+    shutDownEvent = CreateEvent(NULL, TRUE, FALSE, SERVER_SHUTDOWN);
 
     verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
 
@@ -155,6 +164,8 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     CloseHandle(structTh.mutex);
     CloseHandle(verifySemaphore);
+    SetEvent(shutDownEvent);
+    CloseHandle(shutDownEvent);
 
     return 0;
 }

@@ -10,7 +10,8 @@
 
 #define TAM 40
 #define SERVER_SEMAPHORE TEXT("ServerInstances")
-#define MAX_THREADS 2
+#define SERVER_SHUTDOWN TEXT("ServerExit")
+#define MAX_THREADS 3
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
 int out_flag;
