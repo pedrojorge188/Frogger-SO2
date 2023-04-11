@@ -170,6 +170,8 @@ int _tmain(int argc, TCHAR* argv[]) {
     return 0;
 }
 
+
+
 int FillGameDefaults(game * g){
 
     srand(time(NULL));

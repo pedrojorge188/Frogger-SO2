@@ -6,15 +6,13 @@
 #include <io.h>
 #include <fcntl.h>
 #include <stdio.h>
-
+#include "../utils.h"
 
 #define TAM 40
 
 #define TIMEOUT 10000
 #define SERVER_LIMIT_USERS 1
 #define SERVER_RUNNING_MSG TEXT("Já Existe um servidor em atividade!")
-#define SERVER_SEMAPHORE TEXT("ServerInstances")
-#define SERVER_SHUTDOWN TEXT("ServerExit")
 
 #define N_TRACKS TEXT("FroggerGame\\NumberTracks")
 #define N_TRACKS_ATT TEXT("TRACKS_VALUE")
