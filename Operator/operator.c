@@ -81,20 +81,18 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
     COORD position = { 0, 1 };
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD written;
-    HANDLE hFileShared;
-    TCHAR pBuf;
+    shared_api sd;
 
-
-    hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
+    HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
 
     if (hFileShared == NULL)
     {
-        _tprintf(TEXT("Could not open file mapping object (%d).\n"),
-            GetLastError());
-        return 1;
+        _tprintf(L"erro!");
+        ExitThread(2);
     }
 
-    pBuf = (TCHAR)MapViewOfFile(hFileShared, 
+    LPVOID pBuf  = MapViewOfFile(
+        hFileShared, 
         FILE_MAP_ALL_ACCESS,  
         0,
         0,
@@ -102,20 +100,31 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
     if (pBuf == NULL)
     {
-        _tprintf(TEXT("Could not map view of file (%d).\n"), GetLastError());
-
         CloseHandle(hFileShared);
-
         ExitThread(2);
     }
 
     
     while (out_flag == 0) {
         
-        WriteConsoleOutputCharacter(console, L"Informacoes recebidas por memoria compartilhada:\n\n",
-            wcslen(L"Informacoes recebidas por memoria compartilhada:\n\n"), position, &written);
-        Sleep(1000);
 
+        COORD position = { 2, 3 };
+        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD written;
+            
+        CopyMemory(&sd, pBuf, sizeof(sd));
+
+        for (int i = 0; i < H_GAME; i++) {
+            for (int j = 0; j < W_GAME; j++) {
+                wchar_t c = sd.table[i][j];
+                WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
+                position.X++;
+            }
+            position.Y++;
+            position.X = 0;
+        }
+
+ 
     }
 
     UnmapViewOfFile(pBuf);

@@ -15,10 +15,6 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     while (1) {
         WaitForSingleObject(p->mutex, INFINITE);
 
-        COORD position = { 0, 18 };
-        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-
-        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), position);
         _tprintf(L"->");
 
         if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
@@ -88,7 +84,11 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
-
+    shared_api sd;
+    
+    sd.mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
+ 
+  
     FillGameDefaults(p->gameData);
     
 
@@ -103,7 +103,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
 
     if (hSharedMemory == NULL) {
-        return -1;
+        ExitThread(2);
     }
 
     LPVOID lpSharedMemory = MapViewOfFile(
@@ -116,30 +116,34 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     if (lpSharedMemory == NULL) {
 
         CloseHandle(hSharedMemory);
-        return -1;
+        ExitThread(2);
     }
 
-    TCHAR str[] = L"TESTE";
-
-
-    CopyMemory(lpSharedMemory, str, sizeof(str));
-
-
-    /*
+ 
     while (out_flag == 0) {
 
         moveCars(p->gameData);
 
-      
+        WaitForSingleObject(sd.mutex,INFINITE);
+
+        for (int i = 0; i < H_GAME; i++) {
+            for (int j = 0; j < W_GAME; j++) {
+                sd.table[i][j] = p->gameData->table[i][j];
+            }
+        }
+
+        CopyMemory(lpSharedMemory, &sd, sizeof(sd));
+
+        ReleaseMutex(sd.mutex);
 
         Sleep(p->gameData->vehicle_speed * 150);
 
     }
-    */
+    
 
     UnmapViewOfFile(lpSharedMemory);
     CloseHandle(hSharedMemory);
-
+    CloseHandle(sd.mutex);
     ExitThread(2);
 }
 
