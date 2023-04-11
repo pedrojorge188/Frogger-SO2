@@ -28,38 +28,16 @@
 #define MAX_THREADS 2
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
-#define MAX_FROGS 2
-#define W_GAME 20 //largura da area de jogo (COLUNAS)
-#define H_GAME 10 //altura da area de jogo (LINHAS)
-#define MAX_VEHICLES 8
 #define DEFAULT 2
 
 int out_flag = 0;
 
-typedef struct frog {
-	int x, y;
-	int points; // se -1 perdeu o jogo e é desconectado
-}frog;
-
-typedef struct vehicles {
-	int x, y;
-	int orientation; // 1-> direita para a esquerda, 2-> esquerda para a direita
-} vehicles;
-
-typedef struct game {
-	frog frogs[MAX_FROGS];			//Sapos (Clientes)
-	vehicles cars[8][MAX_VEHICLES]; // veiculos[pos na faxa][o id do carro]
-	int mode;				// 1-> Individual 2-> Competição
-	INT num_tracks;			// Numero de estradas
-	INT vehicle_speed;	   // Velocidade dos carros
-	int n_cars_per_track; // Random de numero de carros por track
-	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização para debug
-}game;
 
 typedef struct thParams {
 	HANDLE mutex;
 	game * gameData;
 }thParams;
+
 
 void UNICODE_INITIALIZER();
 game FillRegistryValues();

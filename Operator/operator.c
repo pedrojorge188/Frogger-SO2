@@ -77,13 +77,9 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 }
 
 DWORD WINAPI game_informations(LPVOID lpParam) {
-    
-    COORD position = { 0, 1 };
-    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD written;
-    shared_api sd;
 
     HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
+    game g;
 
     if (hFileShared == NULL)
     {
@@ -91,7 +87,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         ExitThread(2);
     }
 
-    LPVOID pBuf  = MapViewOfFile(
+        game * pBuf = (game*)MapViewOfFile(
         hFileShared, 
         FILE_MAP_ALL_ACCESS,  
         0,
@@ -103,32 +99,53 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         CloseHandle(hFileShared);
         ExitThread(2);
     }
-
     
-    while (out_flag == 0) {
-        
+    HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
 
-        COORD position = { 2, 3 };
+    if (mutex == NULL) {
+        _tprintf(L"Fail to create a mutex!\n");
+        CloseHandle(mutex);
+        ExitThread(2);
+    }
+    
+
+    while (out_flag == 0) {
+       
+        WaitForSingleObject(mutex,INFINITE);
+        
+        int size = sizeof(pBuf);
+
+        COORD position = { 3 , 1 };
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         DWORD written;
-            
-        CopyMemory(&sd, pBuf, sizeof(sd));
 
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
-                wchar_t c = sd.table[i][j];
+
+                g.table[i][j] = pBuf->table[i][j];
+      
+            }
+        }
+
+        for (int i = 0; i < H_GAME; i++) {
+            for (int j = 0; j < W_GAME; j++) {
+                
+                wchar_t c = g.table[i][j];
                 WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
                 position.X++;
+
             }
             position.Y++;
             position.X = 0;
         }
 
- 
+        ReleaseMutex(mutex);
+        
     }
 
     UnmapViewOfFile(pBuf);
 
+    CloseHandle(mutex);
     CloseHandle(hFileShared);
     
     ExitThread(2);
