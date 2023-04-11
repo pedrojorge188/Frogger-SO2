@@ -90,29 +90,55 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
     FillGameDefaults(p->gameData);
+    
 
+    HANDLE hSharedMemory = CreateFileMapping(
+        INVALID_HANDLE_VALUE,
+        NULL,
+        PAGE_READWRITE,
+        0,
+        SHARED_MEMORY_SIZE,
+        SHARED_MEMORY_NAME
+    );
+
+
+    if (hSharedMemory == NULL) {
+        return -1;
+    }
+
+    LPVOID lpSharedMemory = MapViewOfFile(
+        hSharedMemory,
+        FILE_MAP_WRITE,
+        0,
+        0,
+        SHARED_MEMORY_SIZE);
+
+    if (lpSharedMemory == NULL) {
+
+        CloseHandle(hSharedMemory);
+        return -1;
+    }
+
+    TCHAR str[] = L"TESTE";
+
+
+    CopyMemory(lpSharedMemory, str, sizeof(str));
+
+
+    /*
     while (out_flag == 0) {
 
         moveCars(p->gameData);
 
-        // O CÓDIGO SEGUINTE È PARA SER IMPLEMENTADO NO OPERATOR
-        COORD position = { 2, 3 };
-        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD written;
-
-        for (int i = 0; i < H_GAME; i++) {
-            for (int j = 0; j < W_GAME; j++) {
-                WCHAR c = p->gameData->table[i][j];
-                WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
-                position.X++;
-            }
-            position.Y++;
-            position.X = 0;
-        }
+      
 
         Sleep(p->gameData->vehicle_speed * 150);
 
     }
+    */
+
+    UnmapViewOfFile(lpSharedMemory);
+    CloseHandle(hSharedMemory);
 
     ExitThread(2);
 }
@@ -141,6 +167,7 @@ int _tmain(int argc, TCHAR* argv[]) {
         _tprintf(SERVER_RUNNING_MSG); Sleep(TIMEOUT);
         return -1;
     }
+
     
     game gameData;
     thParams structTh = { 0 };
@@ -169,7 +196,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     return 0;
 }
-
 
 
 int FillGameDefaults(game * g){
