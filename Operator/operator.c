@@ -81,14 +81,46 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
     COORD position = { 0, 1 };
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD written;
+    HANDLE hFileShared;
+    TCHAR pBuf;
 
+
+    hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
+
+    if (hFileShared == NULL)
+    {
+        _tprintf(TEXT("Could not open file mapping object (%d).\n"),
+            GetLastError());
+        return 1;
+    }
+
+    pBuf = (TCHAR)MapViewOfFile(hFileShared, 
+        FILE_MAP_ALL_ACCESS,  
+        0,
+        0,
+        SHARED_MEMORY_SIZE);
+
+    if (pBuf == NULL)
+    {
+        _tprintf(TEXT("Could not map view of file (%d).\n"), GetLastError());
+
+        CloseHandle(hFileShared);
+
+        ExitThread(2);
+    }
+
+    
     while (out_flag == 0) {
-
+        
         WriteConsoleOutputCharacter(console, L"Informacoes recebidas por memoria compartilhada:\n\n",
             wcslen(L"Informacoes recebidas por memoria compartilhada:\n\n"), position, &written);
         Sleep(1000);
 
     }
+
+    UnmapViewOfFile(pBuf);
+
+    CloseHandle(hFileShared);
     
     ExitThread(2);
 }
