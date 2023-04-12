@@ -94,7 +94,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     }
   
     FillGameDefaults(p->gameData);
-    
+
     //Código para colocar dentro da dll
 
     LPVOID hSharedMemory = CreateFileMapping(
@@ -215,8 +215,27 @@ int _tmain(int argc, TCHAR* argv[]) {
 int setObstacle(game * g) {
        
     srand(time(NULL));
+    int x;
+    int y;
 
-    return 0;
+    
+    do {
+        x = rand() % W_GAME;
+        y = rand() % g->num_tracks;
+
+        for (int i = 0; i < H_GAME; i++) {
+            for (int j = 0; j < W_GAME; j++)
+                if (g->table[y][x] == 'O')
+                    x = 0;
+
+        }
+
+    } while (x == 0 || y == 0);
+
+    g->table[y][x] = 'O';
+    
+
+    return 1;
 
 }
 
@@ -256,6 +275,10 @@ int FillGameDefaults(game * g){
         }   
     }
 
+    setObstacle(g);
+    setObstacle(g);
+    setObstacle(g);
+    setObstacle(g);
 
     return 1;
 }
@@ -264,34 +287,52 @@ void moveCars(game* g) {
 
     for (int i = 0; i < H_GAME; i++) {
         for (int j = 0; j < W_GAME; j++) {
-            if (g->table[i][j] != '<' && g->table[i][j] != 'S' && g->table != '>' && g->table != '-')
+            if (g->table[i][j] != '<' && g->table[i][j] != 'S' && g->table != '>' && g->table != '-' && g->table[i][j] != 'O')
                 g->table[i][j] = ' ';
         }
     }
 
     for (int i = 0; i < g->num_tracks; i++) {
         for (int j = 0; j < g->n_cars_per_track; j++) {
-            g->table[g->cars[i][j].x][g->cars[i][j].y] = ' ';
+            if(g->table[g->cars[i][j].x][g->cars[i][j].y] != 'O')
+                g->table[g->cars[i][j].x][g->cars[i][j].y] = ' ';
             if (g->cars[i][j].orientation == 1) {
                 g->cars[i][j].y += 1;
                 if (g->cars[i][j].y >= W_GAME) {
-                    g->cars[i][j].y -= W_GAME-2;
+                    g->cars[i][j].y -= W_GAME - 2;
                 }
             }
             else {
                 g->cars[i][j].y -= 1;
                 if (g->cars[i][j].y < 1) {
-                    g->cars[i][j].y += W_GAME-2;
+                    g->cars[i][j].y += W_GAME - 2;
                 }
             }
-            if(g->cars[i]->orientation == 1)
-                 g->table[g->cars[i][j].x][g->cars[i][j].y] = '>';
-            else
-                g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
+
+            if (g->table[g->cars[i][j].x][g->cars[i][j].y] != 'O') {
+
+                if (g->cars[i]->orientation == 1)
+                    g->table[g->cars[i][j].x][g->cars[i][j].y] = '>';
+                else
+                    g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
+
+            }
+         
         }
 
     }
-     
+
+    /*
+    _tprintf(L"\n");
+    for (int i = 0; i < H_GAME; i++) {
+        for (int j = 0; j < W_GAME; j++) {
+
+            _tprintf(L"%c", g->table[i][j]);
+
+        }
+        _tprintf(L"\n");
+    }
+    */
 }
 
 int ChangeNumTracks(INT value) {

@@ -115,7 +115,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         
         int size = sizeof(pBuf);
 
-        COORD position = { 3 , 1 };
+        COORD position = { 0 , 1 };
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         DWORD written;
 
@@ -123,7 +123,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
             for (int j = 0; j < W_GAME; j++) {
 
                 g.table[i][j] = pBuf->table[i][j];
-      
+    
             }
         }
 
