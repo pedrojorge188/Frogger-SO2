@@ -33,11 +33,11 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
                 if (value <= 8 && value > 0) {
 
-                    _tprintf(_T("[SERVER] Número de estradas inicial alterado! (tracks:%d)\n"),value);
+                    _tprintf(_T("[SERVER] Número de estradas inicial alterado! (tracks:%d)\n"), value);
 
-                    if (ChangeNumTracks(value) == 1) 
+                    if (ChangeNumTracks(value) == 1)
                         _tprintf(_T("[GLOBAL] Número de estradas alterado!"));
-                    
+
                 }
                 else {
                     _tprintf(_T("[SERVER] Valor Inválido\n"));
@@ -51,11 +51,11 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 if (ChangeSpeed(value) == 1)
                     _tprintf(_T("[GLOBAL] Velocidade inícial das viaturas alterado!"));
             }
-            else if(wcscmp(command, _T("list")) == 0) {
+            else if (wcscmp(command, _T("list")) == 0) {
 
                 _tprintf(_T("[SERVER] Número de estradas Inicial: %d\n"), p->gameData->num_tracks);
                 _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
-                
+
             }
             else if (wcscmp(command, _T("pause")) == 0) {
 
@@ -63,7 +63,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             }
             else if (wcscmp(command, _T("resume")) == 0) {
-                 
+
                 _tprintf(L"Jogo Retornado\n");
 
             }
@@ -85,14 +85,14 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
 
-    
+
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
     if (mutex == NULL) {
         _tprintf(L"Fail to create a mutex!\n");
         CloseHandle(mutex);
         ExitThread(2);
     }
-  
+
     FillGameDefaults(p->gameData);
 
     //Código para colocar dentro da dll
@@ -124,7 +124,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         ExitThread(2);
     }
 
- 
+
     while (out_flag == 0) {
 
         COORD position = { 2, 3 };
@@ -137,7 +137,6 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
         moveCars(p->gameData);
 
-
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
                 lpSharedMemory->table[i][j] = p->gameData->table[i][j];
@@ -146,11 +145,19 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
         lpSharedMemory->frogs[0] = p->gameData->frogs[0];
         lpSharedMemory->frogs[1] = p->gameData->frogs[1];
+        
+        if (wcscmp(lpSharedMemory->cmd, _T("object")) == 0) {
+
+            _tprintf(_T("[OPERATOR] Obstaculo solicitado!\n"));
+            setObstacle(p->gameData);
+            wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
+
+        }
 
         ReleaseMutex(mutex);
-        
+
     }
-    
+
 
     UnmapViewOfFile(lpSharedMemory);
     CloseHandle(hSharedMemory);
@@ -169,9 +176,9 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
 
-    if (verifySemaphore == NULL){
+    if (verifySemaphore == NULL) {
         verifySemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE);
-        if (verifySemaphore == NULL){
+        if (verifySemaphore == NULL) {
             return 1;
         }
     }
@@ -183,7 +190,7 @@ int _tmain(int argc, TCHAR* argv[]) {
         return -1;
     }
 
-    
+
     game gameData;
     thParams structTh = { 0 };
 
@@ -191,16 +198,16 @@ int _tmain(int argc, TCHAR* argv[]) {
     HANDLE hThreads[MAX_THREADS];
 
     gameData = FillRegistryValues();
-   
+
     HANDLE serverMutex = CreateMutex(NULL, FALSE, NULL);
 
     structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
 
-    hThreads[0] = CreateThread(NULL,0,input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0,game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[0]);
-    
-    ResumeThread(hThreads[1]); 
+    hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
+    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[0]);
+
+    ResumeThread(hThreads[1]);
 
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
 
@@ -212,13 +219,13 @@ int _tmain(int argc, TCHAR* argv[]) {
     return 0;
 }
 
-int setObstacle(game * g) {
-       
+int setObstacle(game* g) {
+
     srand(time(NULL));
     int x;
     int y;
 
-    
+
     do {
         x = rand() % W_GAME;
         y = rand() % g->num_tracks;
@@ -233,51 +240,48 @@ int setObstacle(game * g) {
     } while (x == 0 || y == 0);
 
     g->table[y][x] = 'O';
-    
+
 
     return 1;
 
 }
 
-int FillGameDefaults(game * g){
+int FillGameDefaults(game* g) {
 
     srand(time(NULL));
     int direction = 0;
 
-    g->n_cars_per_track = rand()%MAX_VEHICLES;
+    g->n_cars_per_track = rand() % MAX_VEHICLES;
     if (g->n_cars_per_track == 0)
         g->n_cars_per_track = DEFAULT;
 
     memset(g->table, ' ', sizeof(g->table));
 
     //colocar os sapos->META 1
-    
+
     for (int i = 0; i < MAX_FROGS; i++) {
         g->frogs[i].x = 0;
         g->frogs[i].y = rand() % W_GAME;
         g->frogs[i].points = 0;
-        g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
+        g->table[g->frogs[i].x][g->frogs[i].y] = 'S';
     }
-    
+
 
     //Colocar os carros
     for (int i = 0; i < g->num_tracks; i++) {
         direction = rand() % 2;
         for (int j = 0; j < g->n_cars_per_track; j++) {
             g->cars[i][j].orientation = direction;
-            g->cars[i][j].x = i+1;
+            g->cars[i][j].x = i + 1;
             g->cars[i][j].y = rand() % W_GAME;
 
-            if(direction == 1)
-              g->table[g->cars[i][j].x][g->cars[i][j].y] = '>';
+            if (direction == 1)
+                g->table[g->cars[i][j].x][g->cars[i][j].y] = '>';
             else
-              g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
-        }   
+                g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
+        }
     }
 
-    setObstacle(g);
-    setObstacle(g);
-    setObstacle(g);
     setObstacle(g);
 
     return 1;
@@ -294,7 +298,7 @@ void moveCars(game* g) {
 
     for (int i = 0; i < g->num_tracks; i++) {
         for (int j = 0; j < g->n_cars_per_track; j++) {
-            if(g->table[g->cars[i][j].x][g->cars[i][j].y] != 'O')
+            if (g->table[g->cars[i][j].x][g->cars[i][j].y] != 'O')
                 g->table[g->cars[i][j].x][g->cars[i][j].y] = ' ';
             if (g->cars[i][j].orientation == 1) {
                 g->cars[i][j].y += 1;
@@ -317,7 +321,7 @@ void moveCars(game* g) {
                     g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
 
             }
-         
+
         }
 
     }
@@ -326,9 +330,7 @@ void moveCars(game* g) {
     _tprintf(L"\n");
     for (int i = 0; i < H_GAME; i++) {
         for (int j = 0; j < W_GAME; j++) {
-
             _tprintf(L"%c", g->table[i][j]);
-
         }
         _tprintf(L"\n");
     }
@@ -357,7 +359,7 @@ int ChangeNumTracks(INT value) {
 
     RegCloseKey(key);
     return ret;
-        
+
 }
 
 int ChangeSpeed(INT value) {
@@ -399,7 +401,7 @@ game FillRegistryValues() {
 
         DWORD size = sizeof(wcValue);
         LONG err = RegGetValue(key, NULL, N_TRACKS_ATT, RRF_RT_ANY, NULL, pvData, &size);
-        
+
         if (err == ERROR_SUCCESS) {
             DWORD convert = *(DWORD*)pvData;
             gameData.num_tracks = (INT)convert;
@@ -416,7 +418,7 @@ game FillRegistryValues() {
             _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
             gameData.num_tracks = (INT)dwValue;
 
-        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1); 
+        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
 
@@ -473,6 +475,5 @@ void UNICODE_INITIALIZER() {
     _setmode(_fileno(stdout), _O_WTEXT);
     _setmode(_fileno(stderr), _O_WTEXT);
 #endif
-_tprintf(TEXT("-----------SERVER--------------\n"));
+    _tprintf(TEXT("-----------SERVER--------------\n"));
 }
-

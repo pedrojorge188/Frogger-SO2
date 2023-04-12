@@ -34,13 +34,45 @@ DWORD WINAPI server_info(LPVOID lpParam) {
 
 DWORD WINAPI input_thread(LPVOID lpParam) {
 
-    TCHAR command[50];
+    TCHAR command[100];
     INT value;
-
     COORD pos = { 0 , 18 };
+    game g;
+
+    HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
+
+    if (hFileShared == NULL)
+    {
+        _tprintf(L"erro!");
+        ExitThread(2);
+    }
+
+    game* pBuf = (game*)MapViewOfFile(
+        hFileShared,
+        FILE_MAP_ALL_ACCESS,
+        0,
+        0,
+        SHARED_MEMORY_SIZE);
+
+    if (pBuf == NULL)
+    {
+        CloseHandle(hFileShared);
+        ExitThread(2);
+    }
+
+    HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
+
+    if (mutex == NULL) {
+        _tprintf(L"Fail to open mutex!\n");
+        CloseHandle(mutex);
+        ExitThread(2);
+    }
+
 
     while (1) {
            
+          
+
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
             _tprintf(L"->");
@@ -56,12 +88,14 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             }
             else if (wcscmp(command, _T("stoptime")) == 0) {
 
-                _tprintf(_T("[SERVER] ´Tempo Parado!\n"));
-
+                _tprintf(_T("[SERVER] tempo parado !\n"));
             }
-            else if (wcscmp(command, _T("obstacle")) == 0) {
+            else if (wcscmp(command, _T("object")) == 0) {
 
                 _tprintf(_T("[SERVER] Obstaculo colocado!\n"));
+                WaitForSingleObject(mutex, INFINITE);
+                wcscpy_s(pBuf->cmd, sizeof(command), command);
+                ReleaseMutex(mutex);
 
             }
             else if (wcscmp(command, _T("invert")) == 0) {
@@ -69,10 +103,12 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 _tprintf(_T("[SERVER] Direção invertida!\n"));
 
             }
-     
+            
+    
 
     }
 
+    CloseHandle(mutex);
     ExitThread(1);
 }
 
@@ -103,7 +139,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
     HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
 
     if (mutex == NULL) {
-        _tprintf(L"Fail to create a mutex!\n");
+        _tprintf(L"Fail to open mutex!\n");
         CloseHandle(mutex);
         ExitThread(2);
     }
