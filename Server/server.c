@@ -95,6 +95,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
   
     FillGameDefaults(p->gameData);
     
+    //Código para colocar dentro da dll
 
     LPVOID hSharedMemory = CreateFileMapping(
         INVALID_HANDLE_VALUE,
@@ -135,7 +136,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         WaitForSingleObject(mutex, INFINITE);
 
         moveCars(p->gameData);
-        
+
 
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
@@ -143,6 +144,8 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
             }
         }
 
+        lpSharedMemory->frogs[0] = p->gameData->frogs[0];
+        lpSharedMemory->frogs[1] = p->gameData->frogs[1];
 
         ReleaseMutex(mutex);
         
@@ -226,6 +229,7 @@ int FillGameDefaults(game * g){
     for (int i = 0; i < MAX_FROGS; i++) {
         g->frogs[i].x = 0;
         g->frogs[i].y = rand() % W_GAME;
+        g->frogs[i].points = 0;
         g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
     }
    

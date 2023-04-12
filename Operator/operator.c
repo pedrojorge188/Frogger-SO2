@@ -127,6 +127,8 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
             }
         }
 
+        g.frogs[0] = pBuf->frogs[0]; g.frogs[1] = pBuf->frogs[1];
+
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
                 
@@ -138,6 +140,17 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
             position.Y++;
             position.X = 0;
         }
+
+        wchar_t myString[20] = L"Pontos Sapo 1: ";
+        wchar_t myString2[20] = L"Pontos Sapo 2: ";
+        int sp_1 = g.frogs[0].points;
+        int sp_2 = g.frogs[1].points;
+
+        swprintf_s(myString + wcslen(myString), 20 - wcslen(myString), L"%d", sp_1);
+        swprintf_s(myString2 + wcslen(myString2), 20 - wcslen(myString2), L"%d", sp_2);
+       
+        WriteConsoleOutputCharacterW(console, myString, wcslen(myString), (COORD){0, 15}, &written);
+        WriteConsoleOutputCharacterW(console, myString2, wcslen(myString2), (COORD) { wcslen(myString2)+5 , 15 }, & written);
 
         ReleaseMutex(mutex);
         
