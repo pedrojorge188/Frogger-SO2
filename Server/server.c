@@ -212,6 +212,13 @@ int _tmain(int argc, TCHAR* argv[]) {
     return 0;
 }
 
+int setObstacle(game * g) {
+       
+    srand(time(NULL));
+
+    return 0;
+
+}
 
 int FillGameDefaults(game * g){
 
@@ -232,7 +239,7 @@ int FillGameDefaults(game * g){
         g->frogs[i].points = 0;
         g->table[g->frogs[i].x][ g->frogs[i].y] = 'S';
     }
-   
+    
 
     //Colocar os carros
     for (int i = 0; i < g->num_tracks; i++) {
@@ -241,9 +248,14 @@ int FillGameDefaults(game * g){
             g->cars[i][j].orientation = direction;
             g->cars[i][j].x = i+1;
             g->cars[i][j].y = rand() % W_GAME;
-            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'V';
-        }
+
+            if(direction == 1)
+              g->table[g->cars[i][j].x][g->cars[i][j].y] = '>';
+            else
+              g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
+        }   
     }
+
 
     return 1;
 }
@@ -252,7 +264,7 @@ void moveCars(game* g) {
 
     for (int i = 0; i < H_GAME; i++) {
         for (int j = 0; j < W_GAME; j++) {
-            if (g->table[i][j] != 'V' && g->table[i][j] != 'S')
+            if (g->table[i][j] != '<' && g->table[i][j] != 'S' && g->table != '>' && g->table != '-')
                 g->table[i][j] = ' ';
         }
     }
@@ -272,7 +284,10 @@ void moveCars(game* g) {
                     g->cars[i][j].y += W_GAME-2;
                 }
             }
-            g->table[g->cars[i][j].x][g->cars[i][j].y] = 'V';
+            if(g->cars[i]->orientation == 1)
+                 g->table[g->cars[i][j].x][g->cars[i][j].y] = '>';
+            else
+                g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
         }
 
     }

@@ -64,7 +64,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 _tprintf(_T("[SERVER] Obstaculo colocado!\n"));
 
             }
-            else if (wcscmp(command, _T("invertdir")) == 0) {
+            else if (wcscmp(command, _T("invert")) == 0) {
 
                 _tprintf(_T("[SERVER] Direção invertida!\n"));
 

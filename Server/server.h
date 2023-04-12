@@ -42,6 +42,7 @@ typedef struct thParams {
 void UNICODE_INITIALIZER();
 game FillRegistryValues();
 int FillGameDefaults(game * g);
+int setObstacle(game* g);
 void moveCars(game * g);
 DWORD __stdcall input_thread(LPVOID lpParam);
 int ChangeNumTracks(INT value);
