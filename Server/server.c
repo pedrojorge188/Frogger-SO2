@@ -84,7 +84,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
-
+    int pause_game = 0;
 
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
     if (mutex == NULL) {
@@ -135,7 +135,8 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
         WaitForSingleObject(mutex, INFINITE);
 
-        moveCars(p->gameData);
+        if(pause_game == 0)
+            moveCars(p->gameData);
 
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
@@ -146,13 +147,37 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         lpSharedMemory->frogs[0] = p->gameData->frogs[0];
         lpSharedMemory->frogs[1] = p->gameData->frogs[1];
         
-        if (wcscmp(lpSharedMemory->cmd, _T("object")) == 0) {
 
-            _tprintf(_T("[OPERATOR] Obstaculo solicitado!\n"));
+        if (wcscmp(lpSharedMemory->cmd, _T("dir")) == 0) {
+
+            _tprintf(_T("\n[OPERATOR] Direção invertida!\n"));
+            invertOrientation(p->gameData);
+            wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
+
+        }
+
+        else if (wcscmp(lpSharedMemory->cmd, _T("object")) == 0) {
+
+            _tprintf(L"%s", lpSharedMemory->cmd);
+            _tprintf(_T("\n[OPERATOR] Obstaculo colocado!\n"));
             setObstacle(p->gameData);
             wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
 
         }
+        else if (wcscmp(lpSharedMemory->cmd, _T("game")) == 0) {
+
+
+            if (pause_game == 0) {
+                _tprintf(_T("\n[OPERATOR] Jogo pausado!\n"));
+                pause_game = 1;
+            } else {
+                _tprintf(_T("\n[OPERATOR] Jogo retomado!\n"));
+                pause_game = 0;
+            }
+
+            wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
+        }
+
 
         ReleaseMutex(mutex);
 
@@ -205,7 +230,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.gameData = &gameData;
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[0]);
+    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[1]);
 
     ResumeThread(hThreads[1]);
 
@@ -217,6 +242,22 @@ int _tmain(int argc, TCHAR* argv[]) {
     CloseHandle(shutDownEvent);
 
     return 0;
+}
+
+void invertOrientation(game *g) {
+        
+    for (int i = 0; i < g->num_tracks; i++) {
+        for (int j = 0; j < g->n_cars_per_track; j++) {
+            if (g->cars[i][j].orientation == 1) {
+                g->cars[i][j].orientation = 2;
+            }
+            else {
+                g->cars[i][j].orientation = 1;
+            }
+          
+        }
+    }
+
 }
 
 int setObstacle(game* g) {
@@ -281,8 +322,6 @@ int FillGameDefaults(game* g) {
                 g->table[g->cars[i][j].x][g->cars[i][j].y] = '<';
         }
     }
-
-    setObstacle(g);
 
     return 1;
 }

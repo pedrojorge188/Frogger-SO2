@@ -71,13 +71,13 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
     while (1) {
            
-          
-
+         
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
             _tprintf(L"->");
 
             _tscanf_s(_T("%s %d"), command, 50, &value);
+
 
             if (wcscmp(command, _T("exit")) == 0) {
 
@@ -86,21 +86,27 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 out_flag = 1;
                 exit(1);
             }
-            else if (wcscmp(command, _T("stoptime")) == 0) {
+            else if (wcscmp(command, _T("game")) == 0) {
 
                 _tprintf(_T("[SERVER] tempo parado !\n"));
+                WaitForSingleObject(mutex, INFINITE);
+                    wcscpy_s(pBuf->cmd, sizeof(command), command);
+                ReleaseMutex(mutex);
             }
             else if (wcscmp(command, _T("object")) == 0) {
 
                 _tprintf(_T("[SERVER] Obstaculo colocado!\n"));
                 WaitForSingleObject(mutex, INFINITE);
-                wcscpy_s(pBuf->cmd, sizeof(command), command);
+                    wcscpy_s(pBuf->cmd, sizeof(command), command);
                 ReleaseMutex(mutex);
 
             }
-            else if (wcscmp(command, _T("invert")) == 0) {
+            else if (wcscmp(command, _T("dir")) == 0) {
 
-                _tprintf(_T("[SERVER] Direção invertida!\n"));
+                _tprintf(_T("[SERVER] direção invertida!\n"));
+                WaitForSingleObject(mutex, INFINITE);
+                    wcscpy_s(pBuf->cmd, sizeof(command), command);
+                ReleaseMutex(mutex);
 
             }
             
