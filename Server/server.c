@@ -59,16 +59,32 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             }
             else if (wcscmp(command, _T("pause")) == 0) {
 
-                _tprintf(L"Jogo Pausado!\n");
+                DWORD suspend_count = SuspendThread(p->thIDs[1]);
+                if (suspend_count == (DWORD)-1) {
+                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
+                else {
+                    _tprintf(L"Jogo Pausado!\n");
+                }
+
 
             }
             else if (wcscmp(command, _T("resume")) == 0) {
 
-                _tprintf(L"Jogo Retornado\n");
+                DWORD resume_count = ResumeThread(p->thIDs[1]); 
+                if (resume_count == (DWORD)-1) {
+                    _tprintf(L"Erro ao retomar a execução da thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
+                else {
+                    _tprintf(L"Jogo Iniciado!\n");
+                }
 
             }
             else if (wcscmp(command, _T("restart")) == 0) {
 
+                FillGameDefaults(p->gameData);
                 _tprintf(L"Jogo reiniciado\n");
 
             }
@@ -228,9 +244,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     structTh.mutex = serverMutex;
     structTh.gameData = &gameData;
+    structTh.thIDs = &hThreads;
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[1]);
+
+
 
     ResumeThread(hThreads[1]);
 

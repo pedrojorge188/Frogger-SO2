@@ -35,6 +35,7 @@ int out_flag = 0;
 
 typedef struct thParams {
 	HANDLE mutex;
+	HANDLE * thIDs;
 	game * gameData;
 }thParams;
 
