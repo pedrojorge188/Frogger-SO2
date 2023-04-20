@@ -9,8 +9,13 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     UNICODE_INITIALIZER();
 
-    HANDLE verifySemaphore;//verifica sapos "abertos"
+    HANDLE verifySemaphore;
     DWORD dwWaitResult;
+
+    if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
+        _tprintf(L"O servidor não está a correr");
+        ExitProcess(1);
+    }
 
     verifySemaphore = CreateSemaphore(NULL, MAX_FROGS, MAX_FROGS, FROG_SEMAPHORE);
 
