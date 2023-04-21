@@ -6,95 +6,6 @@
 #include "server.h"
 
 
-DWORD WINAPI input_thread(LPVOID lpParam) {
-    thParams* p = (thParams*)lpParam;
-
-    TCHAR command[50];
-    INT value;
-
-    while (1) {
-
-        _tprintf(L"->");
-
-        if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
-
-            if (wcscmp(command, _T("exit")) == 0) {
-
-                HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
-                SetEvent(shutDown);
-                CloseHandle(shutDown);
-
-                out_flag = 1;
-                ExitThread(1);
-
-            }
-            else if (wcscmp(command, _T("tracks")) == 0) {
-
-                if (value <= 8 && value > 0) {
-
-                    _tprintf(_T("[SERVER] Número de estradas inicial alterado! (tracks:%d)\n"), value);
-
-                    if (ChangeNumTracks(value) == 1)
-                        _tprintf(_T("[GLOBAL] Número de estradas alterado!"));
-
-                }
-                else {
-                    _tprintf(_T("[SERVER] Valor Inválido\n"));
-                }
-
-            }
-            else if (wcscmp(command, _T("vspeed")) == 0) {
-
-                _tprintf(_T("[SERVER] Velocidade inícial das viaturas alterado! (vspeed:%d)\n"), value);
-
-                if (ChangeSpeed(value) == 1)
-                    _tprintf(_T("[GLOBAL] Velocidade inícial das viaturas alterado!"));
-            }
-            else if (wcscmp(command, _T("list")) == 0) {
-
-                _tprintf(_T("[SERVER] Número de estradas Inicial: %d\n"), p->gameData->num_tracks);
-                _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
-
-            }
-            else if (wcscmp(command, _T("pause")) == 0) {
-
-                DWORD suspend_count = SuspendThread(p->thIDs[1]);
-                if (suspend_count == (DWORD)-1) {
-                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
-                    return 1;
-                }
-                else {
-                    _tprintf(L"Jogo Pausado!\n");
-                }
-
-
-            }
-            else if (wcscmp(command, _T("resume")) == 0) {
-
-                DWORD resume_count = ResumeThread(p->thIDs[1]);
-                if (resume_count == (DWORD)-1) {
-                    _tprintf(L"Erro ao retomar a execução da thread. Código de erro: %d\n", GetLastError());
-                    return 1;
-                }
-                else {
-                    _tprintf(L"Jogo Iniciado!\n");
-                }
-
-            }
-            else if (wcscmp(command, _T("restart")) == 0) {
-
-                FillGameDefaults(p->gameData);
-                _tprintf(L"Jogo reiniciado\n");
-
-            }
-
-        }
-
-    }
-
-    ExitThread(1);
-}
-
 DWORD WINAPI move_cars(LPVOID lpParam) {
 
     moveParam * p = (moveParam*)lpParam;
@@ -148,6 +59,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     int pause_game = 0;
 
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
+
     if (mutex == NULL) {
         _tprintf(L"Fail to create a mutex!\n");
         CloseHandle(mutex);
@@ -161,7 +73,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         NULL,
         PAGE_READWRITE,
         0,
-        SHARED_MEMORY_SIZE,
+        sizeof(game),
         SHARED_MEMORY_NAME
     );
 
@@ -175,7 +87,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         FILE_MAP_WRITE,
         0,
         0,
-        SHARED_MEMORY_SIZE);
+        sizeof(game));
 
     if (lpSharedMemory == NULL) {
 
@@ -192,50 +104,19 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
         WaitForSingleObject(mutex, INFINITE);
 
-        for (int i = 0; i < H_GAME; i++) {
+        CopyMemory(lpSharedMemory,p->gameData,sizeof(game));
+
+        /*for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
                 lpSharedMemory->table[i][j] = p->gameData->table[i][j];
             }
         }
 
         lpSharedMemory->num_tracks = p->gameData->num_tracks;
-
         lpSharedMemory->frogs[0] = p->gameData->frogs[0];
         lpSharedMemory->frogs[1] = p->gameData->frogs[1];
-
-        if (wcscmp(lpSharedMemory->cmd, _T("dir")) == 0) {
-
-            _tprintf(_T("\n[OPERATOR] Direção invertida!\n"));
-            invertOrientation(p->gameData);
-            wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
-
-        }
-
-        else if (wcscmp(lpSharedMemory->cmd, _T("object")) == 0) {
-
-            _tprintf(L"%s", lpSharedMemory->cmd);
-            _tprintf(_T("\n[OPERATOR] Obstaculo colocado!\n"));
-            setObstacle(p->gameData);
-            wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
-
-        }
-        else if (wcscmp(lpSharedMemory->cmd, _T("game")) == 0) {
-
-
-            if (pause_game == 0) {
-                _tprintf(_T("\n[OPERATOR] Jogo pausado!\n"));
-                pause_game = 1;
-            }
-            else {
-                _tprintf(_T("\n[OPERATOR] Jogo retomado!\n"));
-                pause_game = 0;
-            }
-
-            wcscpy_s(lpSharedMemory->cmd, sizeof(_T(" ")), _T(" "));
-        }
-
-
-
+        */
+      
         ReleaseMutex(mutex);
 
     }
@@ -246,6 +127,99 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     CloseHandle(mutex);
     ExitThread(2);
 }
+
+
+DWORD WINAPI input_thread(LPVOID lpParam) {
+    thParams* p = (thParams*)lpParam;
+
+    TCHAR command[50];
+    INT value;
+
+    while (1) {
+
+        _tprintf(L"->");
+
+        if (_tscanf_s(_T("%s %d"), command, sizeof(command), &value) == 2) {
+
+            if (wcscmp(command, _T("exit")) == 0) {
+
+                HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
+                SetEvent(shutDown);
+                CloseHandle(shutDown);
+
+                out_flag = 1;
+                ExitThread(1);
+            }
+            else if (wcscmp(command, _T("tracks")) == 0) {
+                if (value <= 8 && value > 0) {
+                    if (ChangeNumTracks(value) == 1)
+                        _tprintf(_T("[GLOBAL] Número de estradas alterado!"));
+                }
+                else {
+                    _tprintf(_T("[SERVER] Valor Inválido\n"));
+                }
+            }
+            else if (wcscmp(command, _T("vspeed")) == 0) {
+                if (ChangeSpeed(value) == 1)
+                    _tprintf(_T("[GLOBAL] Velocidade inícial das viaturas alterado!"));
+            }
+            else if (wcscmp(command, _T("list")) == 0) {
+                _tprintf(_T("[SERVER] Número de estradas Inicial: %d\n"), p->gameData->num_tracks);
+                _tprintf(_T("[SERVER] Velocidade Inicial : %d\n"), p->gameData->vehicle_speed);
+            }
+            else if (wcscmp(command, _T("pause")) == 0) {
+
+                if (SuspendThread(p->thIDs[1]) == (DWORD)-1) {
+                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
+
+                for (int i = 0; i < p->gameData->num_tracks; i++) {
+                    if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
+                        _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
+                        return 1;
+                    }
+
+                }
+
+                _tprintf(L"Jogo Pausado!\n");
+
+            }
+            else if (wcscmp(command, _T("resume")) == 0) {
+
+                if (ResumeThread(p->thIDs[1]) == (DWORD)-1) {
+                    _tprintf(L"Erro ao retomar a execução da thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
+
+                for (int i = 0; i < p->gameData->num_tracks; i++) {
+                    if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
+                        _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
+                        return 1;
+                    }
+ 
+                }
+
+                _tprintf(L"Jogo Iniciado!\n");
+
+            }
+            else if (wcscmp(command, _T("restart")) == 0) {
+
+                FillGameDefaults(p->gameData);
+                _tprintf(L"Jogo reiniciado\n");
+
+            }
+            else {
+                _tprintf(L"[SERVER] Comando Inválido!\n");
+            }
+
+        }
+
+    }
+
+    ExitThread(1);
+}
+
 
 int _tmain(int argc, TCHAR* argv[]) {
 
@@ -278,6 +252,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     structTh.gameData = &gameData;
     structTh.thIDs = &hThreads;
+    structTh.move_threads = &hMovementCars;
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[1]);

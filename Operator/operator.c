@@ -27,7 +27,6 @@ DWORD WINAPI server_info(LPVOID lpParam) {
             ExitProcess(1);
         }
     }
-  
 
     ExitThread(3);
 }
@@ -90,24 +89,18 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             else if (wcscmp(command, _T("game")) == 0) {
 
                 _tprintf(_T("[SERVER] tempo parado !\n"));
-                WaitForSingleObject(mutex, INFINITE);
-                    wcscpy_s(pBuf->cmd, sizeof(command), command);
-                ReleaseMutex(mutex);
+
             }
             else if (wcscmp(command, _T("object")) == 0) {
 
                 _tprintf(_T("[SERVER] Obstaculo colocado!\n"));
-                WaitForSingleObject(mutex, INFINITE);
-                    wcscpy_s(pBuf->cmd, sizeof(command), command);
-                ReleaseMutex(mutex);
+
 
             }
             else if (wcscmp(command, _T("dir")) == 0) {
 
                 _tprintf(_T("[SERVER] direção invertida!\n"));
-                WaitForSingleObject(mutex, INFINITE);
-                    wcscpy_s(pBuf->cmd, sizeof(command), command);
-                ReleaseMutex(mutex);
+
 
             }
             
@@ -120,6 +113,8 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 }
 
 DWORD WINAPI game_informations(LPVOID lpParam) {
+
+    /*Esta thread é responsavel por mostrar o estado atual do jogo partilhado pelo server*/
 
     HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
     game g;
@@ -135,7 +130,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         FILE_MAP_ALL_ACCESS,  
         0,
         0,
-        SHARED_MEMORY_SIZE);
+        sizeof(game));
 
     if (pBuf == NULL)
     {

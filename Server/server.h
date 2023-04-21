@@ -39,6 +39,7 @@ typedef struct moveParam{
 
 typedef struct thParams {
 	HANDLE * thIDs;
+	HANDLE * move_threads;
 	game * gameData;
 }thParams;
 
