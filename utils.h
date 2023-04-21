@@ -36,8 +36,9 @@ typedef struct game {
 	int mode;				// 1-> Individual 2-> Competição
 	INT num_tracks;			// Numero de estradas
 	INT vehicle_speed;	   // Velocidade dos carros
+	int track_speed[8];
 	int n_cars_per_track; // Random de numero de carros por track
-	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização para debug
+	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
 	TCHAR cmd[100];
 }game;
 

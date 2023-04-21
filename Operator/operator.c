@@ -52,7 +52,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
         FILE_MAP_ALL_ACCESS,
         0,
         0,
-        SHARED_MEMORY_SIZE);
+        sizeof(game));
 
     if (pBuf == NULL)
     {
@@ -75,6 +75,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
             _tprintf(L"->");
+
 
             _tscanf_s(_T("%s %d"), command, 50, &value);
 
@@ -125,7 +126,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
     if (hFileShared == NULL)
     {
-        _tprintf(L"erro!");
+        _tprintf(L"Erro ao mapear a memória partilhada");
         ExitThread(2);
     }
 
@@ -150,6 +151,8 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         ExitThread(2);
     }
     
+    int ret = 0;
+  
 
     while (out_flag == 0) {
        
@@ -157,7 +160,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         
         int size = sizeof(pBuf);
 
-        COORD position = { 0 , 1 };
+        COORD position = { 5 , 2 };
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         DWORD written;
 
@@ -171,17 +174,33 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
         g.frogs[0] = pBuf->frogs[0]; g.frogs[1] = pBuf->frogs[1];
 
-        for (int i = 0; i < H_GAME; i++) {
-            for (int j = 0; j < W_GAME; j++) {
-                
+        for (int i = H_GAME-1; i >= -1; i--) {
+            for (int j = W_GAME-1; j >= 0; j--) {
+
+
                 wchar_t c = g.table[i][j];
+
+                if (i == pBuf->num_tracks + 1 || i == pBuf->num_tracks + 2)
+
+                    c = L'_';
+
+                else if (i == 0 && g.table[i][j] != L'S' || i == -1)
+
+                    c = L'_';
+
+                if ((j == 0 || j == W_GAME-1) && i < pBuf->num_tracks + 2)
+
+                    c = L'|';
+
                 WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
                 position.X++;
 
             }
             position.Y++;
-            position.X = 0;
+            position.X = 5;
         }
+
+
 
         wchar_t myString[20] = L"Pontos Sapo 1: ";
         wchar_t myString2[20] = L"Pontos Sapo 2: ";

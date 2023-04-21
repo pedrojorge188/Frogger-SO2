@@ -32,9 +32,12 @@
 
 int out_flag = 0;
 
+typedef struct moveParam{
+	int track;
+	game* gameData;
+}moveParam;
 
 typedef struct thParams {
-	HANDLE mutex;
 	HANDLE * thIDs;
 	game * gameData;
 }thParams;
@@ -44,7 +47,6 @@ void UNICODE_INITIALIZER();
 game FillRegistryValues();
 int FillGameDefaults(game * g);
 int setObstacle(game* g);
-void moveCars(game * g);
 DWORD __stdcall input_thread(LPVOID lpParam);
 int ChangeNumTracks(INT value);
 int ChangeSpeed(INT value);
