@@ -25,12 +25,13 @@
 #define COUT_SPEED TEXT("[SERVER] Insira a velocidade inicial dos carros :")
 #define SPEED_COMMAND _T("speed")
 
-#define MAX_THREADS 2
+#define MAX_THREADS 3
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
 #define DEFAULT 2
 
 int out_flag = 0;
+int counter = 0;
 
 typedef struct moveParam{
 	int track;
@@ -40,7 +41,12 @@ typedef struct moveParam{
 typedef struct thParams {
 	HANDLE * thIDs;
 	HANDLE * move_threads;
+	LPVOID shared_memory;
+	game* memParser;
 	game * gameData;
+	HANDLE hWrite;
+	HANDLE hRead;
+	HANDLE hBlock;
 }thParams;
 
 

@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 
-
+#define SHARED_MEMORY_CMDS TEXT("CMD_MEMORY")
 #define SERVER_SEMAPHORE TEXT("ServerInstances")
 #define SERVER_SHUTDOWN TEXT("ServerExit")
 #define SHARED_MEMORY_NAME TEXT("MEM_WITH_DATA")
@@ -37,6 +37,12 @@ typedef struct bufferCircular {
 	TCHAR cmd[100];
 }bufferCircular;
 
+typedef struct buffer {
+	int pRead;
+	int pWrite;
+	bufferCircular buffer[BUFFER_SIZE];
+}buffer;
+
 typedef struct game {
 
 	frog frogs[2];			//Sapos (Clientes)
@@ -47,11 +53,7 @@ typedef struct game {
 	int track_speed[8];
 	int n_cars_per_track; // Random de numero de carros por track
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
-	
-	int posW; //posicao para escrita
-	int posR; //posicao de leitura
 
-	bufferCircular buffer[50];
 }game;
 
 #endif

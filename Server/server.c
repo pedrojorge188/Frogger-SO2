@@ -8,7 +8,7 @@
 
 DWORD WINAPI move_cars(LPVOID lpParam) {
 
-    moveParam * p = (moveParam*)lpParam;
+    moveParam* p = (moveParam*)lpParam;
 
     while (out_flag == 0) {
 
@@ -16,13 +16,13 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
 
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
-                if (p->gameData->table[i][j] != '<' &&p->gameData->table[i][j] != 'S' && p->gameData->table[i][j]!= '>' && p->gameData->table[i][j] != '-' &&p->gameData->table[i][j] != 'O')
+                if (p->gameData->table[i][j] != '<' && p->gameData->table[i][j] != 'S' && p->gameData->table[i][j] != '>' && p->gameData->table[i][j] != '-' && p->gameData->table[i][j] != 'O')
                     p->gameData->table[i][j] = ' ';
             }
         }
 
         for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
-            if ( p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
             if (p->gameData->cars[p->track][j].orientation == 1) {
                 p->gameData->cars[p->track][j].y += 1;
                 if (p->gameData->cars[p->track][j].y >= W_GAME) {
@@ -36,7 +36,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
                 }
             }
 
-            if ( p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') {
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') {
 
                 if (p->gameData->cars[p->track][j].orientation == 1)
                     p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
@@ -53,6 +53,89 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
 
 }
 
+
+DWORD WINAPI cmd_receiver(LPVOID lpParam) {
+
+    thParams* p = (thParams*)lpParam;
+    TCHAR cmd[100];
+
+
+    LPVOID cmd_shared_list = CreateFileMapping(
+        INVALID_HANDLE_VALUE,
+        NULL,
+        PAGE_READWRITE,
+        0,
+        sizeof(buffer),
+        SHARED_MEMORY_CMDS
+    );
+
+
+    if (cmd_shared_list == NULL) {
+        return -1;
+    }
+
+    buffer* memParser = (buffer*)MapViewOfFile(
+        cmd_shared_list,
+        FILE_MAP_WRITE,
+        0,
+        0,
+        sizeof(buffer));
+
+
+    while (out_flag == 0) {
+
+
+        WaitForSingleObject(p->hRead, INFINITE);
+        WaitForSingleObject(p->hBlock, INFINITE);
+
+        _tprintf(L"command receiver ->  %s\n", memParser->buffer[memParser->pRead].cmd);
+
+        
+        if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("dir")) == 0) {
+
+            invertOrientation(p->gameData);
+
+        }
+        else if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("object")) == 0) {
+
+            setObstacle(p->gameData);
+        }
+        else if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("stopcars")) == 0) {
+
+            for (int i = 0; i < p->gameData->num_tracks; i++) {
+                if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
+                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
+
+            }
+        }
+        else if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("resume")) == 0) {
+            for (int i = 0; i < p->gameData->num_tracks; i++) {
+                if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
+                    _tprintf(L"[SERVER] Erro ao iniciar o movimento dos carros: %d\n", GetLastError());
+                    return 1;
+                }
+
+            }
+        }
+        
+        memParser->pRead++;
+        if (memParser->pRead == 50)
+            memParser->pRead = 0;
+
+        ReleaseMutex(p->hBlock);
+        ReleaseSemaphore(p->hWrite, 1, NULL);
+
+
+    }
+
+    CloseHandle(cmd_shared_list);
+    UnmapViewOfFile(memParser);
+    ExitThread(3);
+}
+
+
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
@@ -61,40 +144,10 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
 
     if (mutex == NULL) {
-        _tprintf(L"Fail to create a mutex!\n");
+        _tprintf(L"[ERROR] game_manager thread\n");
         CloseHandle(mutex);
         ExitThread(2);
     }
-
-    //Código para colocar dentro da dll
-
-    LPVOID hSharedMemory = CreateFileMapping(
-        INVALID_HANDLE_VALUE,
-        NULL,
-        PAGE_READWRITE,
-        0,
-        sizeof(game),
-        SHARED_MEMORY_NAME
-    );
-
-
-    if (hSharedMemory == NULL) {
-        ExitThread(2);
-    }
-
-    game* lpSharedMemory = (game*)MapViewOfFile(
-        hSharedMemory,
-        FILE_MAP_WRITE,
-        0,
-        0,
-        sizeof(game));
-
-    if (lpSharedMemory == NULL) {
-
-        CloseHandle(hSharedMemory);
-        ExitThread(2);
-    }
-
 
     while (out_flag == 0) {
 
@@ -104,26 +157,13 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
         WaitForSingleObject(mutex, INFINITE);
 
-        CopyMemory(lpSharedMemory,p->gameData,sizeof(game));
+            CopyMemory(p->memParser, p->gameData, sizeof(game));
 
-        /*for (int i = 0; i < H_GAME; i++) {
-            for (int j = 0; j < W_GAME; j++) {
-                lpSharedMemory->table[i][j] = p->gameData->table[i][j];
-            }
-        }
-
-        lpSharedMemory->num_tracks = p->gameData->num_tracks;
-        lpSharedMemory->frogs[0] = p->gameData->frogs[0];
-        lpSharedMemory->frogs[1] = p->gameData->frogs[1];
-        */
-      
         ReleaseMutex(mutex);
 
     }
 
 
-    UnmapViewOfFile(lpSharedMemory);
-    CloseHandle(hSharedMemory);
     CloseHandle(mutex);
     ExitThread(2);
 }
@@ -148,6 +188,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                 CloseHandle(shutDown);
 
                 out_flag = 1;
+                exit(1);
                 ExitThread(1);
             }
             else if (wcscmp(command, _T("tracks")) == 0) {
@@ -197,7 +238,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
                         _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
                         return 1;
                     }
- 
+
                 }
 
                 _tprintf(L"Jogo Iniciado!\n");
@@ -229,48 +270,95 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     HANDLE verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
 
-    if (verifySemaphore == NULL) 
+    if (verifySemaphore == NULL)
         return 1;
-    
 
-    DWORD dwWaitResult = WaitForSingleObject(verifySemaphore, 0L);
 
-    if (dwWaitResult != WAIT_OBJECT_0) {
+    //verifing if any server was running
+
+    if (WaitForSingleObject(verifySemaphore, 0L) != WAIT_OBJECT_0) {
         _tprintf(SERVER_RUNNING_MSG); Sleep(TIMEOUT);
         return -1;
     }
 
-    thParams structTh = { 0 };
-    moveParam structMove[8] = {0};
 
+    thParams structTh = { 0 };
+    moveParam structMove[8] = { 0 };
     DWORD dwIDThreads[MAX_THREADS];
     HANDLE hThreads[MAX_THREADS];
     HANDLE hMovementCars[8];
 
+    //Filling game defaults
+
     game gameData = FillRegistryValues();
     FillGameDefaults(&gameData);
+
+    //filling threads structures
 
     structTh.gameData = &gameData;
     structTh.thIDs = &hThreads;
     structTh.move_threads = &hMovementCars;
 
-    hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[1]);
+    structTh.shared_memory = CreateFileMapping(
+        INVALID_HANDLE_VALUE,
+        NULL,
+        PAGE_READWRITE,
+        0,
+        sizeof(game),
+        SHARED_MEMORY_NAME
+    );
 
-    ResumeThread(hThreads[1]);
-    
-    for (int i = 0; i < gameData.num_tracks ; i++) {
+
+    if (structTh.shared_memory == NULL) {
+        return -1;
+    }
+
+    structTh.memParser = (game*)MapViewOfFile(
+        structTh.shared_memory,
+        FILE_MAP_WRITE,
+        0,
+        0,
+        sizeof(game));
+
+    structTh.hBlock = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
+    structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
+    structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
+
+    if (structTh.shared_memory == NULL || structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
+        _tprintf(L"[ERROR] creating handles!\n");
+        CloseHandle(structTh.shared_memory);
+        return -1;
+    }
+
+
+    //creating threads 
+
+    hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
+    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[1]);
+    hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
+
+    for (int i = 0; i < gameData.num_tracks; i++) {
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
         hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
     }
-   
+
+
+    //waiting threads to finish
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
     WaitForMultipleObjects(gameData.num_tracks, &hMovementCars, TRUE, INFINITE);
+
+
+    //closing handles
 
     CloseHandle(verifySemaphore);
     SetEvent(shutDownEvent);
     CloseHandle(shutDownEvent);
+    CloseHandle(structTh.hWrite);
+    CloseHandle(structTh.hBlock);
+    CloseHandle(structTh.hRead);
+    UnmapViewOfFile(structTh.memParser);
+    CloseHandle(structTh.shared_memory);
 
     return 0;
 }

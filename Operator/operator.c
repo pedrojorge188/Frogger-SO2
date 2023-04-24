@@ -35,12 +35,12 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
     DataTh* data = (DataTh*)lpParam;
 
-    TCHAR command[100];
+    TCHAR command[100] = L" ";
     INT value;
     COORD pos = { 0 , 18 };
-    game g;
+    bufferCircular bf;
 
-    HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
+    HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_CMDS);
 
     if (hFileShared == NULL)
     {
@@ -48,12 +48,12 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
         ExitThread(2);
     }
 
-    game* pBuf = (game*)MapViewOfFile(
+    buffer* pBuf = (buffer*)MapViewOfFile(
         hFileShared,
         FILE_MAP_ALL_ACCESS,
         0,
         0,
-        sizeof(game));
+        sizeof(buffer));
 
     if (pBuf == NULL)
     {
@@ -61,17 +61,9 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
         ExitThread(2);
     }
 
-    HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
-
-    if (mutex == NULL) {
-        _tprintf(L"Fail to open mutex!\n");
-        CloseHandle(mutex);
-        ExitThread(2);
-    }
-
-
-    while (wcscmp(command, _T("exit")) == 0) {
+    while (wcscmp(command, _T("exit")) != 0) {
            
+
          
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
@@ -82,17 +74,19 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             WaitForSingleObject(data->hWrite, INFINITE);
             WaitForSingleObject(data->trinco, INFINITE);
-            
-            CopyMemory(&pBuf->buffer[data->posE].cmd, &command,sizeof(command));
-            data->posE++;
-            
+           
+                wcscpy_s(pBuf->buffer[pBuf->pWrite].cmd, sizeof(command), command);
+
+                pBuf->pWrite++;
+                if (pBuf->pWrite == BUFFER_SIZE)
+                    pBuf->pWrite = 0;
+   
             ReleaseMutex(data->trinco);
             ReleaseSemaphore(data->hRead, 1, NULL);
-
     }
-    UnmapViewOfFile(pBuf);
+
     exit(1);
-    CloseHandle(mutex);
+    UnmapViewOfFile(pBuf);
     ExitThread(1);
 }
 
@@ -207,26 +201,27 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 int _tmain(int argc, TCHAR* argv[]) {
        
     UNICODE_INITIALIZER();
-
-    DataTh data;
-
-    data.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
-    data.hWrite = CreateSemaphore(NULL, 0, BUFFER_SIZE, WRITE_SEMAPHORE);
-    data.trinco = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
-
-    if (data.hRead == NULL || data.hWrite == NULL || data.trinco == NULL) {
-        _tprintf(L"Erro a criar semaphore de leitura/escrita ou a criar mutex");
-        ExitProcess(1);
-    }
-
+    
     if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
         _tprintf(L"O servidor não está a correr");
-        ExitProcess(1);
+        return -1;
     }
+    
+
+    DataTh data;
 
     DWORD dwIDThreads[MAX_THREADS];
     HANDLE hThreads[MAX_THREADS];
 
+    data.hRead = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, READ_SEMAPHORE);
+    data.hWrite = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, WRITE_SEMAPHORE);
+    data.trinco = OpenMutex(SYNCHRONIZE, FALSE, MUTEX_COMMAND_ACCESS);
+
+
+    if (data.hRead == NULL || data.hWrite == NULL || data.trinco == NULL) {
+        _tprintf(L"[ERROR] Opening handles\n");
+        return -1;
+    }
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &data, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, game_informations, NULL, 0, &dwIDThreads[1]);
