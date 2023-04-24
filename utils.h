@@ -12,7 +12,10 @@
 #define SERVER_SHUTDOWN TEXT("ServerExit")
 #define SHARED_MEMORY_NAME TEXT("MEM_WITH_DATA")
 #define SHARED_MUTEX TEXT("SHARED_MUTEX")
-#define SHARED_MEMORY_SIZE 3000
+#define WRITE_SEMAPHORE  TEXT("SEMAFORO_ESCRITA")
+#define READ_SEMAPHORE  TEXT("SEMAFORO_LEITURA")
+#define MUTEX_COMMAND_ACCESS TEXT("MUTEX_COMANDOS")
+
 
 #define MAX_FROGS 2
 #define W_GAME 20 //largura da area de jogo (COLUNAS)
@@ -31,6 +34,7 @@ typedef struct vehicles {
 } vehicles;
 
 typedef struct game {
+
 	frog frogs[2];			//Sapos (Clientes)
 	vehicles cars[8][8]; // veiculos[pos na faxa][o id do carro]
 	int mode;				// 1-> Individual 2-> Competição
@@ -39,6 +43,10 @@ typedef struct game {
 	int track_speed[8];
 	int n_cars_per_track; // Random de numero de carros por track
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
+	
+	int posW; //posicao para escrita
+	int posR; //posicao de leitura
+
 	TCHAR cmd[100];
 }game;
 
