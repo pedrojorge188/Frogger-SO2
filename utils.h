@@ -33,6 +33,10 @@ typedef struct vehicles {
 	int orientation; // 1-> direita para a esquerda, 2-> esquerda para a direita
 } vehicles;
 
+typedef struct bufferCircular {
+	TCHAR cmd[100];
+}bufferCircular;
+
 typedef struct game {
 
 	frog frogs[2];			//Sapos (Clientes)
@@ -47,7 +51,7 @@ typedef struct game {
 	int posW; //posicao para escrita
 	int posR; //posicao de leitura
 
-	TCHAR cmd[100];
+	bufferCircular buffer[50];
 }game;
 
 #endif
