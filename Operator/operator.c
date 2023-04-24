@@ -33,6 +33,8 @@ DWORD WINAPI server_info(LPVOID lpParam) {
 
 DWORD WINAPI input_thread(LPVOID lpParam) {
 
+    DataTh* data = (DataTh*)lpParam;
+
     TCHAR command[100];
     INT value;
     COORD pos = { 0 , 18 };
@@ -68,7 +70,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     }
 
 
-    while (1) {
+    while (wcscmp(command, _T("exit")) == 0) {
            
          
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
@@ -78,36 +80,18 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             _tscanf_s(_T("%s %d"), command, 50, &value);
 
-
-            if (wcscmp(command, _T("exit")) == 0) {
-
-                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
-                SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_INTENSITY);
-                out_flag = 1;
-                exit(1);
-            }
-            else if (wcscmp(command, _T("game")) == 0) {
-
-                _tprintf(_T("[SERVER] tempo parado !\n"));
-
-            }
-            else if (wcscmp(command, _T("object")) == 0) {
-
-                _tprintf(_T("[SERVER] Obstaculo colocado!\n"));
-
-
-            }
-            else if (wcscmp(command, _T("dir")) == 0) {
-
-                _tprintf(_T("[SERVER] direção invertida!\n"));
-
-
-            }
+            WaitForSingleObject(data->hWrite, INFINITE);
+            WaitForSingleObject(data->trinco, INFINITE);
             
-    
+            CopyMemory(&pBuf->buffer[data->posE].cmd, &command,sizeof(command));
+            data->posE++;
+            
+            ReleaseMutex(data->trinco);
+            ReleaseSemaphore(data->hRead, 1, NULL);
 
     }
-
+    UnmapViewOfFile(pBuf);
+    exit(1);
     CloseHandle(mutex);
     ExitThread(1);
 }
@@ -224,6 +208,16 @@ int _tmain(int argc, TCHAR* argv[]) {
        
     UNICODE_INITIALIZER();
 
+    DataTh data;
+
+    data.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
+    data.hWrite = CreateSemaphore(NULL, 0, BUFFER_SIZE, WRITE_SEMAPHORE);
+    data.trinco = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
+
+    if (data.hRead == NULL || data.hWrite == NULL || data.trinco == NULL) {
+        _tprintf(L"Erro a criar semaphore de leitura/escrita ou a criar mutex");
+        ExitProcess(1);
+    }
 
     if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
         _tprintf(L"O servidor não está a correr");
@@ -234,12 +228,15 @@ int _tmain(int argc, TCHAR* argv[]) {
     HANDLE hThreads[MAX_THREADS];
 
 
-    hThreads[0] = CreateThread(NULL, 0, input_thread, NULL, 0, &dwIDThreads[0]);
+    hThreads[0] = CreateThread(NULL, 0, input_thread, &data, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, game_informations, NULL, 0, &dwIDThreads[1]);
     hThreads[2] = CreateThread(NULL, 0, server_info, NULL, 0, &dwIDThreads[0]);
 
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
 
+    CloseHandle(data.hRead);
+    CloseHandle(data.hWrite);
+    CloseHandle(data.trinco);
 
     return 0;
    
