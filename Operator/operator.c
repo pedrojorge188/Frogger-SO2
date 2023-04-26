@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 typedef game * (*RECEIVE_GAME)(void);
+typedef int (*WRITE_CMD)(TCHAR *);
 
 DWORD WINAPI server_info(LPVOID lpParam) {
 
@@ -39,28 +40,8 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     TCHAR command[100] = L" ";
     INT value;
     COORD pos = { 0 , 18 };
-    bufferCircular bf;
 
-    HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_CMDS);
-
-    if (hFileShared == NULL)
-    {
-        _tprintf(L"erro!");
-        ExitThread(2);
-    }
-
-    buffer* pBuf = (buffer*)MapViewOfFile(
-        hFileShared,
-        FILE_MAP_ALL_ACCESS,
-        0,
-        0,
-        sizeof(buffer));
-
-    if (pBuf == NULL)
-    {
-        CloseHandle(hFileShared);
-        ExitThread(2);
-    }
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
 
     while (wcscmp(command, _T("exit")) != 0) {
            
@@ -68,26 +49,25 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
          
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
-            _tprintf(L"->");
 
+            _tprintf(L"->");
 
             _tscanf_s(_T("%s %d"), command, 50, &value);
 
             WaitForSingleObject(data->hWrite, INFINITE);
             WaitForSingleObject(data->trinco, INFINITE);
            
-                wcscpy_s(pBuf->buffer[pBuf->pWrite].cmd, sizeof(command), command);
-
-                pBuf->pWrite++;
-                if (pBuf->pWrite == BUFFER_SIZE)
-                    pBuf->pWrite = 0;
+            if (hinstDLL != NULL) {
+                WRITE_CMD writeCmd = (WRITE_CMD)GetProcAddress(hinstDLL, "write_cmds_to_shared_memory");
+                writeCmd(command);
+            }
    
             ReleaseMutex(data->trinco);
             ReleaseSemaphore(data->hRead, 1, NULL);
     }
 
+    FreeLibrary(hinstDLL);
     exit(1);
-    UnmapViewOfFile(pBuf);
     ExitThread(1);
 }
 

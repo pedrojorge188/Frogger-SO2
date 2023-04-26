@@ -7,6 +7,8 @@
 
 typedef void (*INIT_GAME_MEMORY)(void);
 typedef int (*COPY_GAME_STATUS)(game*);
+typedef void (*INIT_CMDS_MEMORY)(void);
+typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
 DWORD WINAPI move_cars(LPVOID lpParam) {
 
@@ -59,72 +61,61 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
 DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
-    TCHAR cmd[100];
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
 
+    int cmd_status = 0;
 
-    LPVOID cmd_shared_list = CreateFileMapping(
-        INVALID_HANDLE_VALUE,
-        NULL,
-        PAGE_READWRITE,
-        0,
-        sizeof(buffer),
-        SHARED_MEMORY_CMDS
-    );
-
-
-    if (cmd_shared_list == NULL) {
-        return -1;
-    }
-
-    buffer* memParser = (buffer*)MapViewOfFile(
-        cmd_shared_list,
-        FILE_MAP_WRITE,
-        0,
-        0,
-        sizeof(buffer));
+    /*
+        cmd_status = 1 -> invertDirection
+        cmd_status = 2 -> set object
+        cmd_status = 3 -> stopcars
+        cmd_status = 4 -> resume car movement
+    */
 
 
     while (out_flag == 0) {
 
-
         WaitForSingleObject(p->hRead, INFINITE);
         WaitForSingleObject(p->hBlock, INFINITE);
 
-        _tprintf(L"command receiver ->  %s\n", memParser->buffer[memParser->pRead].cmd);
-
-
-        if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("dir")) == 0) {
-
-            invertOrientation(p->gameData);
-
-        }
-        else if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("object")) == 0) {
-
-            setObstacle(p->gameData);
-        }
-        else if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("stopcars")) == 0) {
-
-            for (int i = 0; i < p->gameData->num_tracks; i++) {
-                if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
-                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
-                    return 1;
-                }
-
+            if (hinstDLL != NULL) {
+                READ_CMDS_FROM_SHARED_MEMORY cmd_read = (READ_CMDS_FROM_SHARED_MEMORY)GetProcAddress(hinstDLL, "read_cmds_from_shared_memory");
+                cmd_status = cmd_read();
             }
-        }
-        else if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("resume")) == 0) {
-            for (int i = 0; i < p->gameData->num_tracks; i++) {
-                if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
-                    _tprintf(L"[SERVER] Erro ao iniciar o movimento dos carros: %d\n", GetLastError());
-                    return 1;
-                }
+            switch (cmd_status)
+            {   
+                case 0:
+                    break;
+                case 1:
 
+                    invertOrientation(p->gameData);
+                    break;
+                case 2:
+
+                    setObstacle(p->gameData);
+                    break;
+
+                case 3:
+
+                    for (int i = 0; i < p->gameData->num_tracks; i++) {
+                        if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
+                            return 1;
+                        }
+
+                    }
+                    break;
+
+                case 4:
+
+                    for (int i = 0; i < p->gameData->num_tracks; i++) {
+                        if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
+                            return 1;
+                        }
+
+                    }
+
+                    break;
             }
-        }
-
-        memParser->pRead++;
-        if (memParser->pRead == 50)
-            memParser->pRead = 0;
 
         ReleaseMutex(p->hBlock);
         ReleaseSemaphore(p->hWrite, 1, NULL);
@@ -132,11 +123,9 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
     }
 
-    CloseHandle(cmd_shared_list);
-    UnmapViewOfFile(memParser);
+    FreeLibrary(hinstDLL);
     ExitThread(3);
 }
-
 
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
@@ -173,7 +162,6 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     CloseHandle(mutex);
     ExitThread(2);
 }
-
 
 DWORD WINAPI input_thread(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
@@ -296,6 +284,12 @@ int _tmain(int argc, TCHAR* argv[]) {
         if (init != NULL) {
             init();
         }
+
+        INIT_CMDS_MEMORY initCmd = (INIT_CMDS_MEMORY)GetProcAddress(hinstDLL, "initialize_cmds_shared_memory");
+        if (initCmd != NULL) {
+            initCmd();
+        }
+
         FreeLibrary(hinstDLL);
     }
 

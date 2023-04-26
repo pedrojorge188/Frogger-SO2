@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 
-#define SHARED_MEMORY_CMDS TEXT("CMD_MEMORY")
 #define SERVER_SEMAPHORE TEXT("ServerInstances")
 #define SERVER_SHUTDOWN TEXT("ServerExit")
 #define SHARED_MUTEX TEXT("SHARED_MUTEX")
@@ -32,15 +31,6 @@ typedef struct vehicles {
 	int orientation; // 1-> direita para a esquerda, 2-> esquerda para a direita
 } vehicles;
 
-typedef struct bufferCircular {
-	TCHAR cmd[100];
-}bufferCircular;
-
-typedef struct buffer {
-	int pRead;
-	int pWrite;
-	bufferCircular buffer[BUFFER_SIZE];
-}buffer;
 
 typedef struct game {
 
