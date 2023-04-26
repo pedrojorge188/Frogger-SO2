@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include "server.h"
 
+typedef void (*INIT_GAME_MEMORY)(void);
+typedef int (*COPY_GAME_STATUS)(game*);
 
 DWORD WINAPI move_cars(LPVOID lpParam) {
 
@@ -90,7 +92,7 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
         _tprintf(L"command receiver ->  %s\n", memParser->buffer[memParser->pRead].cmd);
 
-        
+
         if (wcscmp(memParser->buffer[memParser->pRead].cmd, _T("dir")) == 0) {
 
             invertOrientation(p->gameData);
@@ -119,7 +121,7 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
             }
         }
-        
+
         memParser->pRead++;
         if (memParser->pRead == 50)
             memParser->pRead = 0;
@@ -142,12 +144,13 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     int pause_game = 0;
 
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
-
     if (mutex == NULL) {
         _tprintf(L"[ERROR] game_manager thread\n");
         CloseHandle(mutex);
         ExitThread(2);
     }
+
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
 
     while (out_flag == 0) {
 
@@ -156,14 +159,17 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         DWORD written;
 
         WaitForSingleObject(mutex, INFINITE);
-
-            CopyMemory(p->memParser, p->gameData, sizeof(game));
-
+        
+        if (hinstDLL != NULL) {
+            COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
+            copyGame(p->gameData);
+        }
+       
         ReleaseMutex(mutex);
 
     }
 
-
+    FreeLibrary(hinstDLL);
     CloseHandle(mutex);
     ExitThread(2);
 }
@@ -281,6 +287,17 @@ int _tmain(int argc, TCHAR* argv[]) {
         return -1;
     }
 
+    //Getting dll to initialize our shared memory ...
+
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+
+    if (hinstDLL != NULL) {
+        INIT_GAME_MEMORY init = (INIT_GAME_MEMORY)GetProcAddress(hinstDLL, "initialize_game_shared_memory");
+        if (init != NULL) {
+            init();
+        }
+        FreeLibrary(hinstDLL);
+    }
 
     thParams structTh = { 0 };
     moveParam structMove[8] = { 0 };
@@ -299,34 +316,13 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.thIDs = &hThreads;
     structTh.move_threads = &hMovementCars;
 
-    structTh.shared_memory = CreateFileMapping(
-        INVALID_HANDLE_VALUE,
-        NULL,
-        PAGE_READWRITE,
-        0,
-        sizeof(game),
-        SHARED_MEMORY_NAME
-    );
-
-
-    if (structTh.shared_memory == NULL) {
-        return -1;
-    }
-
-    structTh.memParser = (game*)MapViewOfFile(
-        structTh.shared_memory,
-        FILE_MAP_WRITE,
-        0,
-        0,
-        sizeof(game));
-
     structTh.hBlock = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
     structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
     structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
 
-    if (structTh.shared_memory == NULL || structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
+    if ( structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
         _tprintf(L"[ERROR] creating handles!\n");
-        CloseHandle(structTh.shared_memory);
+
         return -1;
     }
 
@@ -354,11 +350,10 @@ int _tmain(int argc, TCHAR* argv[]) {
     CloseHandle(verifySemaphore);
     SetEvent(shutDownEvent);
     CloseHandle(shutDownEvent);
+
     CloseHandle(structTh.hWrite);
     CloseHandle(structTh.hBlock);
     CloseHandle(structTh.hRead);
-    UnmapViewOfFile(structTh.memParser);
-    CloseHandle(structTh.shared_memory);
 
     return 0;
 }

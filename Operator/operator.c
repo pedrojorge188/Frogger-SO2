@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+typedef game * (*RECEIVE_GAME)(void);
 
 DWORD WINAPI server_info(LPVOID lpParam) {
 
@@ -94,30 +95,12 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
     /*Esta thread é responsavel por mostrar o estado atual do jogo partilhado pelo server*/
 
-    HANDLE hFileShared = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, SHARED_MEMORY_NAME);
     game g;
-
-    if (hFileShared == NULL)
-    {
-        _tprintf(L"Erro ao mapear a memória partilhada");
-        ExitThread(2);
-    }
-
-        game * pBuf = (game*)MapViewOfFile(
-        hFileShared, 
-        FILE_MAP_ALL_ACCESS,  
-        0,
-        0,
-        sizeof(game));
-
-    if (pBuf == NULL)
-    {
-        CloseHandle(hFileShared);
-        ExitThread(2);
-    }
+    game* receiver = { 0 };
     
-    HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
 
+    HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
     if (mutex == NULL) {
         _tprintf(L"Fail to open mutex!\n");
         CloseHandle(mutex);
@@ -128,10 +111,14 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
   
 
     while (out_flag == 0) {
-       
+        
+        if (hinstDLL != NULL) {
+            RECEIVE_GAME copyGame = (RECEIVE_GAME)GetProcAddress(hinstDLL, "get_game_from_shared_memory");
+            receiver = copyGame();
+        }
+
         WaitForSingleObject(mutex,INFINITE);
         
-        int size = sizeof(pBuf);
 
         COORD position = { 5 , 2 };
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -140,12 +127,12 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         for (int i = 0; i < H_GAME; i++) {
             for (int j = 0; j < W_GAME; j++) {
 
-                g.table[i][j] = pBuf->table[i][j];
+                g.table[i][j] = receiver->table[i][j];
     
             }
         }
 
-        g.frogs[0] = pBuf->frogs[0]; g.frogs[1] = pBuf->frogs[1];
+        g.frogs[0] = receiver->frogs[0]; g.frogs[1] = receiver->frogs[1];
 
         for (int i = H_GAME-1; i >= -1; i--) {
             for (int j = W_GAME-1; j >= 0; j--) {
@@ -153,7 +140,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
                 wchar_t c = g.table[i][j];
 
-                if (i == pBuf->num_tracks + 1 || i == pBuf->num_tracks + 2)
+                if (i == receiver->num_tracks + 1 || i == receiver->num_tracks + 2)
 
                     c = L'_';
 
@@ -161,7 +148,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
                     c = L'_';
 
-                if ((j == 0 || j == W_GAME-1) && i < pBuf->num_tracks + 2)
+                if ((j == 0 || j == W_GAME-1) && i < receiver->num_tracks + 2)
 
                     c = L'|';
 
@@ -190,10 +177,8 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         
     }
 
-    UnmapViewOfFile(pBuf);
-
+    FreeLibrary(hinstDLL);
     CloseHandle(mutex);
-    CloseHandle(hFileShared);
     
     ExitThread(2);
 }

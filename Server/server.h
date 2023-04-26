@@ -41,8 +41,6 @@ typedef struct moveParam{
 typedef struct thParams {
 	HANDLE * thIDs;
 	HANDLE * move_threads;
-	LPVOID shared_memory;
-	game* memParser;
 	game * gameData;
 	HANDLE hWrite;
 	HANDLE hRead;
