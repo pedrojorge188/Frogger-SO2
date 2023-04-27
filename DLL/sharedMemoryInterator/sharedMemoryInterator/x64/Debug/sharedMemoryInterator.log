@@ -1,0 +1,5 @@
+﻿  dllmain.c
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\DLL\sharedMemoryInterator\sharedMemoryInterator\dllmain.c(58): warning C4715: 'copy_game_to_sharedMemory': nem todos os caminhos de controle retornam um valor
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\DLL\sharedMemoryInterator\sharedMemoryInterator\dllmain.c(191): warning C4715: 'write_cmds_to_shared_memory': nem todos os caminhos de controle retornam um valor
+     Criando biblioteca C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\DLL\sharedMemoryInterator\x64\Debug\sharedMemoryInterator.lib e objeto C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\DLL\sharedMemoryInterator\x64\Debug\sharedMemoryInterator.exp
+  sharedMemoryInterator.vcxproj -> C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\DLL\sharedMemoryInterator\x64\Debug\sharedMemoryInterator.dll
