@@ -26,15 +26,24 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
         }
 
         for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O' )
+                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
+
             if (p->gameData->cars[p->track][j].orientation == 1) {
-                p->gameData->cars[p->track][j].y += 1;
+                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y+1] != 'O')
+                    p->gameData->cars[p->track][j].y += 1;
+                else
+                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
                 if (p->gameData->cars[p->track][j].y >= W_GAME) {
                     p->gameData->cars[p->track][j].y -= W_GAME - 2;
                 }
             }
             else {
-                p->gameData->cars[p->track][j].y -= 1;
+                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y-1] != 'O')
+                    p->gameData->cars[p->track][j].y -= 1;
+                else
+                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
+
                 if (p->gameData->cars[p->track][j].y < 1) {
                     p->gameData->cars[p->track][j].y += W_GAME - 2;
                 }
@@ -56,7 +65,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
     ExitThread(3);
 
 }
-
+     
 
 DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
