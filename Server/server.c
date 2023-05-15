@@ -10,12 +10,60 @@ typedef int (*COPY_GAME_STATUS)(game*);
 typedef void (*INIT_CMDS_MEMORY)(void);
 typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
-DWORD WINAPI move_cars(LPVOID lpParam) {
+
+DWORD WINAPI client_manager(LPVOID lpParam) {
+
+    thParams* p = (thParams*)lpParam;
+    _tprintf(L"[SERVER] Frog (%d) Connected ", connected_clients);
+
+    while (out_flag == 0)  {
+       
+
+
+    }
+  
+    ExitThread(5);
+    
+}
+
+
+DWORD WINAPI connect_clients(LPVOID lpParam) {
+
+    thParams* p = (thParams*)lpParam;
+
+    while (out_flag == 0) {
+
+            DWORD offset = WaitForMultipleObjects(N_CLIENTS, p->hEvents, FALSE, INFINITE);
+            int i = offset - WAIT_OBJECT_0; // devolve o indice da instancia do named pipe que está ativa, aqui sabemos em que indice o cliente se ligou
+
+            // se é um indice válido ...
+            if (i >= 0 && i < N_CLIENTS) {
+
+                DWORD nBytes;
+
+                if (GetOverlappedResult(p->pipe[i].hPipe,&p->pipe[i].overlap, &nBytes, FALSE)) {
+
+                    ResetEvent(p->hEvents[i]);
+                        
+                    p->pipe[i].active = TRUE; 
+                        
+                    connected_clients++;
+
+                    CreateThread(NULL, 0, client_manager, p, 0 , NULL);
+                }
+            }
+ 
+    }
+
+    ExitThread(4);
+ }
+
+DWORD WINAPI move_cars(LPVOID lpParam){
 
     moveParam* p = (moveParam*)lpParam;
 
     while (out_flag == 0) {
-        
+
         Sleep(p->gameData->track_speed[p->track] * 200);
 
         for (int i = 0; i < H_GAME; i++) {
@@ -26,11 +74,11 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
         }
 
         for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O' )
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O')
                 p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
 
             if (p->gameData->cars[p->track][j].orientation == 1) {
-                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y+1] != 'O')
+                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] != 'O')
                     p->gameData->cars[p->track][j].y += 1;
                 else
                     p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
@@ -39,7 +87,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
                 }
             }
             else {
-                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y-1] != 'O')
+                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] != 'O')
                     p->gameData->cars[p->track][j].y -= 1;
                 else
                     p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
@@ -65,7 +113,6 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
     ExitThread(3);
 
 }
-     
 
 DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
@@ -87,44 +134,44 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
         WaitForSingleObject(p->hRead, INFINITE);
         WaitForSingleObject(p->hBlock, INFINITE);
 
-            if (hinstDLL != NULL) {
-                READ_CMDS_FROM_SHARED_MEMORY cmd_read = (READ_CMDS_FROM_SHARED_MEMORY)GetProcAddress(hinstDLL, "read_cmds_from_shared_memory");
-                cmd_status = cmd_read();
+        if (hinstDLL != NULL) {
+            READ_CMDS_FROM_SHARED_MEMORY cmd_read = (READ_CMDS_FROM_SHARED_MEMORY)GetProcAddress(hinstDLL, "read_cmds_from_shared_memory");
+            cmd_status = cmd_read();
+        }
+        switch (cmd_status)
+        {
+        case 0:
+            break;
+        case 1:
+
+            invertOrientation(p->gameData);
+            break;
+        case 2:
+
+            setObstacle(p->gameData);
+            break;
+
+        case 3:
+
+            for (int i = 0; i < p->gameData->num_tracks; i++) {
+                if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
+                    return 1;
+                }
+
             }
-            switch (cmd_status)
-            {   
-                case 0:
-                    break;
-                case 1:
+            break;
 
-                    invertOrientation(p->gameData);
-                    break;
-                case 2:
+        case 4:
 
-                    setObstacle(p->gameData);
-                    break;
+            for (int i = 0; i < p->gameData->num_tracks; i++) {
+                if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
+                    return 1;
+                }
 
-                case 3:
-
-                    for (int i = 0; i < p->gameData->num_tracks; i++) {
-                        if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
-                            return 1;
-                        }
-
-                    }
-                    break;
-
-                case 4:
-
-                    for (int i = 0; i < p->gameData->num_tracks; i++) {
-                        if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
-                            return 1;
-                        }
-
-                    }
-
-                    break;
             }
+
+            break;
+        }
 
         ReleaseMutex(p->hBlock);
         ReleaseSemaphore(p->hWrite, 1, NULL);
@@ -157,12 +204,12 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
         DWORD written;
 
         WaitForSingleObject(mutex, INFINITE);
-        
+
         if (hinstDLL != NULL) {
             COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
             copyGame(p->gameData);
         }
-       
+
 
         ReleaseMutex(mutex);
 
@@ -285,10 +332,11 @@ int _tmain(int argc, TCHAR* argv[]) {
         return -1;
     }
 
+  
     //Getting dll to initialize our shared memory ...
 
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
-
+    
     if (hinstDLL != NULL) {
         INIT_GAME_MEMORY init = (INIT_GAME_MEMORY)GetProcAddress(hinstDLL, "initialize_game_shared_memory");
         if (init != NULL) {
@@ -319,28 +367,63 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.gameData = &gameData;
     structTh.thIDs = &hThreads;
     structTh.move_threads = &hMovementCars;
-
     structTh.hBlock = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
     structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
     structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
-       
-    InitializeCriticalSection(&structTh.critical);
 
-    if ( structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
+    if (structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
         _tprintf(L"[ERROR] creating handles!\n");
 
         return -1;
     }
 
+    //Creating named pipe with overlapped
+
+    for (int i = 0; i < N_CLIENTS; i++) {
+
+        // aqui passamos a constante FILE_FLAG_OVERLAPPED para o named pipe aceitar comunicações assincronas
+        HANDLE hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_OUTBOUND | FILE_FLAG_OVERLAPPED,
+            PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+            N_CLIENTS,
+            sizeof(api_pipe),
+            sizeof(api_pipe),
+            1000,
+            NULL);
+
+        if (hPipe == INVALID_HANDLE_VALUE) {
+            _tprintf(TEXT("[ERROR](CreateNamedPipe)"));
+            exit(-1);
+        }
+
+        HANDLE hEventTemp = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+        if (hEventTemp == NULL) {
+            _tprintf(TEXT("[ERROR] create event (MAIN)\n"));
+            return -1;
+        }
+
+        structTh.pipe[i].hPipe = hPipe;
+        structTh.pipe[i].active = FALSE;
+
+        ZeroMemory(&structTh.pipe[i].overlap, sizeof(structTh.pipe[i].overlap));
+
+        structTh.pipe[i].overlap.hEvent = hEventTemp;
+        structTh.hEvents[i] = hEventTemp;
+
+        ConnectNamedPipe(hPipe, &structTh.pipe[i].overlap);
+    }
+
+    InitializeCriticalSection(&structTh.critical);
 
     //creating threads 
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[1]);
-    hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
+    hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[2]);
+    hThreads[3] = CreateThread(NULL, 0, connect_clients, &structTh, 0, &dwIDThreads[3]);
 
     for (int i = 0; i < gameData.num_tracks; i++) {
-        
+
         structMove->critical = structTh.critical;
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
@@ -353,9 +436,8 @@ int _tmain(int argc, TCHAR* argv[]) {
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
     WaitForMultipleObjects(gameData.num_tracks, &hMovementCars, TRUE, INFINITE);
 
-
     //closing handles
-      
+
     DeleteCriticalSection(&structTh.critical);
 
     CloseHandle(verifySemaphore);

@@ -20,6 +20,9 @@
 
 #define MAX_FROGS 2
 
+typedef struct thParams {
+	HANDLE hPipe;
+}thParams;
 
 void UNICODE_INITIALIZER();
 
