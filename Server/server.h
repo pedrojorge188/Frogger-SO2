@@ -35,13 +35,17 @@ int counter = 0;
 
 typedef struct moveParam{
 	int track;
+	CRITICAL_SECTION critical;
 	game* gameData;
 }moveParam;
 
+
 typedef struct thParams {
+	PipeData hPipes[N_CLIENTS];
 	HANDLE * thIDs;
 	HANDLE * move_threads;
 	game * gameData;
+	CRITICAL_SECTION critical;
 	HANDLE hWrite;
 	HANDLE hRead;
 	HANDLE hBlock;

@@ -19,7 +19,15 @@
 #define W_GAME 20 //largura da area de jogo (COLUNAS)
 #define H_GAME 10 //altura da area de jogo (LINHAS)
 #define MAX_VEHICLES 8
+#define N_CLIENTS 2
 
+typedef struct PipeData{
+
+	HANDLE hPipe;
+	OVERLAPPED overlap;
+	BOOL active;
+
+}PipeData;
 
 typedef struct frog {
 	int x, y;

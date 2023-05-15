@@ -15,7 +15,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
     moveParam* p = (moveParam*)lpParam;
 
     while (out_flag == 0) {
-
+        
         Sleep(p->gameData->track_speed[p->track] * 200);
 
         for (int i = 0; i < H_GAME; i++) {
@@ -163,6 +163,7 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
             copyGame(p->gameData);
         }
        
+
         ReleaseMutex(mutex);
 
     }
@@ -322,6 +323,8 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.hBlock = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
     structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
     structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
+       
+    InitializeCriticalSection(&structTh.critical);
 
     if ( structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
         _tprintf(L"[ERROR] creating handles!\n");
@@ -337,9 +340,12 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
 
     for (int i = 0; i < gameData.num_tracks; i++) {
+        
+        structMove->critical = structTh.critical;
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
         hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
+
     }
 
 
@@ -349,11 +355,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 
     //closing handles
+      
+    DeleteCriticalSection(&structTh.critical);
 
     CloseHandle(verifySemaphore);
     SetEvent(shutDownEvent);
     CloseHandle(shutDownEvent);
-
     CloseHandle(structTh.hWrite);
     CloseHandle(structTh.hBlock);
     CloseHandle(structTh.hRead);
