@@ -14,7 +14,7 @@ typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 DWORD WINAPI client_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
-    _tprintf(L"[SERVER] Frog (%d) Connected ", connected_clients);
+    _tprintf(L"[SERVER] Frog (%d) Connected \n", connected_clients);
 
     while (out_flag == 0)  {
        
@@ -46,14 +46,16 @@ DWORD WINAPI connect_clients(LPVOID lpParam) {
                     ResetEvent(p->hEvents[i]);
                         
                     p->pipe[i].active = TRUE; 
-                        
-                    connected_clients++;
 
+                    setFrog(p->gameData, connected_clients);
+            
+                    connected_clients++;
                     CreateThread(NULL, 0, client_manager, p, 0 , NULL);
                 }
             }
  
     }
+
 
     ExitThread(4);
  }
@@ -186,7 +188,9 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
-    int pause_game = 0;
+    api_pipe send;
+    DWORD n;
+    send.status = 1;
 
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
     if (mutex == NULL) {
@@ -205,15 +209,39 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
 
         WaitForSingleObject(mutex, INFINITE);
 
-        if (hinstDLL != NULL) {
-            COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
-            copyGame(p->gameData);
-        }
+            if (hinstDLL != NULL) {
+                COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
+                copyGame(p->gameData);
+            }
+
+            for (int i = 0; i < N_CLIENTS; i++) {
+                
+
+                if ( p->pipe[i].active) {
+                    
+                    for (int i = 0; i < H_GAME; i++) {
+                        for (int j = 0; j < W_GAME; j++) {
+
+                            send.table[i][j] = p->gameData->table[i][j];
+                            send.num_tracks = p->gameData->num_tracks;
+
+                            ReleaseMutex(mutex);
+                        }
+                    }
+
+                    WriteFile(p->pipe[i].hPipe, &send, sizeof(send), &n, NULL);
+               
+                }
+
+		    }
 
 
         ReleaseMutex(mutex);
 
     }
+
+    for (int i = 0; i < N_CLIENTS; i++)
+        SetEvent(p->hEvents[i]);
 
     FreeLibrary(hinstDLL);
     CloseHandle(mutex);
@@ -439,13 +467,20 @@ int _tmain(int argc, TCHAR* argv[]) {
     //closing handles
 
     DeleteCriticalSection(&structTh.critical);
-
     CloseHandle(verifySemaphore);
     SetEvent(shutDownEvent);
     CloseHandle(shutDownEvent);
     CloseHandle(structTh.hWrite);
     CloseHandle(structTh.hBlock);
     CloseHandle(structTh.hRead);
+
+    for (int i = 0; i < N_CLIENTS; i++) {
+
+        if (!DisconnectNamedPipe(structTh.pipe[i].hPipe)) {
+            _tprintf(TEXT("[ERRO](DisconnectNamedPipe)"));
+            exit(-1);
+        }
+    }
 
     return 0;
 }
@@ -493,6 +528,30 @@ int setObstacle(game* g) {
 
 }
 
+void setFrog(game * g, int id) {
+
+    srand(time(NULL));
+
+    int k = 0;
+
+    do {
+        g->frogs[id].x = 0;
+        g->frogs[id].y = rand() % W_GAME;
+        g->frogs[id].points = 0;
+
+        if (g->table[g->frogs[id].x][g->frogs[id].y] != 'S') {
+
+            k = 1;
+        }
+  
+
+    } while (k == 0);
+
+    g->table[g->frogs[id].x][g->frogs[id].y] = 'S';
+
+
+}
+
 int FillGameDefaults(game* g) {
 
     srand(time(NULL));
@@ -503,15 +562,6 @@ int FillGameDefaults(game* g) {
         g->n_cars_per_track = DEFAULT;
 
     memset(g->table, ' ', sizeof(g->table));
-
-    //colocar os sapos->META 1
-
-    for (int i = 0; i < MAX_FROGS; i++) {
-        g->frogs[i].x = 0;
-        g->frogs[i].y = rand() % W_GAME;
-        g->frogs[i].points = 0;
-        g->table[g->frogs[i].x][g->frogs[i].y] = 'S';
-    }
 
 
     //Colocar os carros

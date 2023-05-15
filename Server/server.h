@@ -41,8 +41,6 @@ typedef struct moveParam{
 }moveParam;
 
 
-
-
 typedef struct thParams {
 	HANDLE * thIDs;
 	HANDLE * move_threads;
@@ -56,6 +54,7 @@ typedef struct thParams {
 }thParams;
 
 
+void setFrog(game* g, int id);
 void UNICODE_INITIALIZER();
 game FillRegistryValues();
 int FillGameDefaults(game * g);

@@ -54,7 +54,11 @@ typedef struct game {
 }game;
 
 typedef struct api_pipe {
+
 	int status;
+	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
+	INT num_tracks;
+
 } api_pipe;
 
 #endif
