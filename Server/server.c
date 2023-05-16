@@ -13,17 +13,58 @@ typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
 DWORD WINAPI client_manager(LPVOID lpParam) {
 
+    api_pipe msg, start_info;
     thParams* p = (thParams*)lpParam;
-    _tprintf(L"[SERVER] Frog (%d) Connected \n", connected_clients);
+
+    int id = connected_clients-1;
+  
+    HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
+    if (mutex == NULL) {
+        _tprintf(L"[ERROR] connect_clients thread\n");
+        CloseHandle(mutex);
+        ExitThread(2);
+    }
+
+
+    if (id >= 1 && p->gameData->mode == 1) {
+
+        msg.status = -1;
+        DWORD ret = WriteFile(p->pipe[id].hPipe, &msg, sizeof(msg), 0, NULL);
+
+        p->pipe[id].active = FALSE;
+        SetEvent(p->pipe[id].overlap.hEvent);
+        ExitThread(5);
+
+    }
+
+
+    setFrog(p->gameData, id);
+    _tprintf(L"[SERVER] Frog (%d) Connected \n", id + 1);
+   
+
+    WaitForSingleObject(mutex, INFINITE);
+
+        DWORD ret = ReadFile(p->pipe[id].hPipe, &start_info, sizeof(start_info), 0, NULL);
+
+        if (start_info.mode == 1) {
+            _tprintf(L"[GAME] Frog (%d) Start Game in gameMode1\n",id + 1);
+            p->gameData->mode = 1;
+        }
+        else if (start_info.mode == 2) {
+            _tprintf(L"[GAME] Frog (%d) Start Game in gameMode2\n",id + 1);
+            p->gameData->mode = 2;
+        }
+
+    ReleaseMutex(mutex);
 
     while (out_flag == 0)  {
-       
 
 
     }
-  
+
+    CloseHandle(mutex);
     ExitThread(5);
-    
+   
 }
 
 
@@ -32,7 +73,7 @@ DWORD WINAPI connect_clients(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
 
     while (out_flag == 0) {
-
+            
             DWORD offset = WaitForMultipleObjects(N_CLIENTS, p->hEvents, FALSE, INFINITE);
             int i = offset - WAIT_OBJECT_0; // devolve o indice da instancia do named pipe que está ativa, aqui sabemos em que indice o cliente se ligou
 
@@ -44,13 +85,13 @@ DWORD WINAPI connect_clients(LPVOID lpParam) {
                 if (GetOverlappedResult(p->pipe[i].hPipe,&p->pipe[i].overlap, &nBytes, FALSE)) {
 
                     ResetEvent(p->hEvents[i]);
-                        
-                    p->pipe[i].active = TRUE; 
+                   
+                    
+                        p->pipe[i].active = TRUE;
+                        p->pipe[i].id = connected_clients;
+                        connected_clients++;
+                        CreateThread(NULL, 0, client_manager, p, 0, NULL);
 
-                    setFrog(p->gameData, connected_clients);
-            
-                    connected_clients++;
-                    CreateThread(NULL, 0, client_manager, p, 0 , NULL);
                 }
             }
  
@@ -190,7 +231,6 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
     api_pipe send;
     DWORD n;
-    send.status = 1;
 
     HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
     if (mutex == NULL) {
@@ -410,7 +450,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     for (int i = 0; i < N_CLIENTS; i++) {
 
         // aqui passamos a constante FILE_FLAG_OVERLAPPED para o named pipe aceitar comunicações assincronas
-        HANDLE hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_OUTBOUND | FILE_FLAG_OVERLAPPED,
+        HANDLE hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
             PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
             N_CLIENTS,
             sizeof(api_pipe),
@@ -537,7 +577,6 @@ void setFrog(game * g, int id) {
     do {
         g->frogs[id].x = 0;
         g->frogs[id].y = rand() % W_GAME;
-        g->frogs[id].points = 0;
 
         if (g->table[g->frogs[id].x][g->frogs[id].y] != 'S') {
 

@@ -19,6 +19,7 @@
 #define START_SPEED TEXT("FroggerGame\StartSpeed")
 
 #define MAX_FROGS 2
+#define N_THREADS 1
 
 typedef struct thParams {
     HANDLE hPipe;

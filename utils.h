@@ -24,6 +24,7 @@
 
 typedef struct PipeData {
 
+	int id;
 	HANDLE hPipe;
 	OVERLAPPED overlap;
 	BOOL active;
@@ -55,6 +56,7 @@ typedef struct game {
 
 typedef struct api_pipe {
 
+	int mode;
 	int status;
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
 	INT num_tracks;
