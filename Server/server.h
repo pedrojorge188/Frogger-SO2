@@ -25,7 +25,7 @@
 #define COUT_SPEED TEXT("[SERVER] Insira a velocidade inicial dos carros :")
 #define SPEED_COMMAND _T("speed")
 
-#define MAX_THREADS 3
+#define MAX_THREADS 4
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
 #define DEFAULT 2

@@ -10,59 +10,53 @@ typedef int (*COPY_GAME_STATUS)(game*);
 typedef void (*INIT_CMDS_MEMORY)(void);
 typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
-
 DWORD WINAPI client_manager(LPVOID lpParam) {
 
     api_pipe msg, start_info;
     thParams* p = (thParams*)lpParam;
 
     int id = connected_clients-1;
-  
-    HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
-    if (mutex == NULL) {
-        _tprintf(L"[ERROR] connect_clients thread\n");
-        CloseHandle(mutex);
-        ExitThread(2);
-    }
-
 
     if (id >= 1 && p->gameData->mode == 1) {
-
         msg.status = -1;
+
         DWORD ret = WriteFile(p->pipe[id].hPipe, &msg, sizeof(msg), 0, NULL);
 
         p->pipe[id].active = FALSE;
-        SetEvent(p->pipe[id].overlap.hEvent);
-        ExitThread(5);
 
+        SetEvent(p->pipe[id].overlap.hEvent);
+
+        ExitThread(5);
     }
 
+    EnterCriticalSection(&p->critical);
 
-    setFrog(p->gameData, id);
-    _tprintf(L"[SERVER] Frog (%d) Connected \n", id + 1);
-   
+        setFrog(p->gameData, id);
 
-    WaitForSingleObject(mutex, INFINITE);
+    LeaveCriticalSection(&p->critical);
+
+        _tprintf(L"[SERVER] Frog (%d) Connected \n", id + 1);
 
         DWORD ret = ReadFile(p->pipe[id].hPipe, &start_info, sizeof(start_info), 0, NULL);
 
+        EnterCriticalSection(&p->critical);
+
         if (start_info.mode == 1) {
-            _tprintf(L"[GAME] Frog (%d) Start Game in gameMode1\n",id + 1);
+ 
             p->gameData->mode = 1;
         }
         else if (start_info.mode == 2) {
-            _tprintf(L"[GAME] Frog (%d) Start Game in gameMode2\n",id + 1);
+      
             p->gameData->mode = 2;
         }
 
-    ReleaseMutex(mutex);
+        LeaveCriticalSection(&p->critical);
 
     while (out_flag == 0)  {
 
 
     }
 
-    CloseHandle(mutex);
     ExitThread(5);
    
 }
@@ -74,9 +68,8 @@ DWORD WINAPI connect_clients(LPVOID lpParam) {
     while (out_flag == 0) {
             
             DWORD offset = WaitForMultipleObjects(N_CLIENTS, p->hEvents, FALSE, INFINITE);
-            int i = offset - WAIT_OBJECT_0; // devolve o indice da instancia do named pipe que está ativa, aqui sabemos em que indice o cliente se ligou
+            int i = offset - WAIT_OBJECT_0; 
 
-            // se é um indice válido ...
             if (i >= 0 && i < N_CLIENTS) {
 
                 DWORD nBytes;
@@ -84,8 +77,7 @@ DWORD WINAPI connect_clients(LPVOID lpParam) {
                 if (GetOverlappedResult(p->pipe[i].hPipe,&p->pipe[i].overlap, &nBytes, FALSE)) {
 
                     ResetEvent(p->hEvents[i]);
-                   
-                    
+                                     
                         p->pipe[i].active = TRUE;
                         p->pipe[i].id = connected_clients;
                         connected_clients++;
@@ -104,7 +96,7 @@ DWORD WINAPI move_cars(LPVOID lpParam){
 
     moveParam* p = (moveParam*)lpParam;
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
-    COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");;
+    COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
     HANDLE evt = p->updateEvent;
 
     while (out_flag == 0) {
@@ -113,13 +105,16 @@ DWORD WINAPI move_cars(LPVOID lpParam){
         EnterCriticalSection(&p->critical);
      
             Sleep(p->gameData->track_speed[p->track] * 200);
+
             moveCars(p);
             copyGame(p->gameData);
+
             SetEvent(evt);
 
         LeaveCriticalSection(&p->critical);
 
     }
+
 
     FreeLibrary(hinstDLL);
     ExitThread(3);
@@ -193,69 +188,60 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
     ExitThread(3);
 }
 
-/*
+
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
     api_pipe send;
     DWORD n;
 
-    HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
-    if (mutex == NULL) {
-        _tprintf(L"[ERROR] game_manager thread\n");
-        CloseHandle(mutex);
-        ExitThread(2);
-    }
+    HANDLE hEvent = OpenEvent(EVENT_ALL_ACCESS, FALSE, UPDATE_EVENT);
 
-    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+    if (hEvent == NULL) {
+        _tprintf(L"[ERROR] Fail to open HANDLES!\n");
+        ExitThread(4);
+    }
 
     while (out_flag == 0) {
 
-        COORD position = { 2, 3 };
-        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD written;
+        DWORD result = WaitForSingleObject(hEvent, INFINITE);
 
-        WaitForSingleObject(mutex, INFINITE);
+        if (result == WAIT_OBJECT_0) {
 
-            if (hinstDLL != NULL) {
-                COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
-                copyGame(p->gameData);
-            }
+            COORD position = { 2, 3 };
+            HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+            DWORD written;
 
             for (int i = 0; i < N_CLIENTS; i++) {
-                
 
-                if ( p->pipe[i].active) {
-                    
+
+                if (p->pipe[i].active) {
+
                     for (int i = 0; i < H_GAME; i++) {
                         for (int j = 0; j < W_GAME; j++) {
 
                             send.table[i][j] = p->gameData->table[i][j];
                             send.num_tracks = p->gameData->num_tracks;
 
-                            ReleaseMutex(mutex);
                         }
                     }
 
                     WriteFile(p->pipe[i].hPipe, &send, sizeof(send), &n, NULL);
-               
+
                 }
 
-		    }
-
-
-        ReleaseMutex(mutex);
+            }
+           
+        }
 
     }
 
     for (int i = 0; i < N_CLIENTS; i++)
         SetEvent(p->hEvents[i]);
 
-    FreeLibrary(hinstDLL);
-    CloseHandle(mutex);
     ExitThread(2);
 }
-*/
+
 
 DWORD WINAPI input_thread(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
@@ -454,7 +440,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
     hThreads[2] = CreateThread(NULL, 0, connect_clients, &structTh, 0, &dwIDThreads[2]);
-    
+    hThreads[3] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[3]);
 
 
     for (int i = 0; i < gameData.num_tracks; i++) {

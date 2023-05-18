@@ -42,6 +42,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     COORD pos = { 0 , 18 };
 
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+    WRITE_CMD writeCmd = (WRITE_CMD)GetProcAddress(hinstDLL, "write_cmds_to_shared_memory");
 
     while (wcscmp(command, _T("exit")) != 0) {
            
@@ -57,11 +58,8 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             WaitForSingleObject(data->hWrite, INFINITE);
             WaitForSingleObject(data->trinco, INFINITE);
            
-            if (hinstDLL != NULL) {
-                WRITE_CMD writeCmd = (WRITE_CMD)GetProcAddress(hinstDLL, "write_cmds_to_shared_memory");
                 writeCmd(command);
-            }
-   
+          
             ReleaseMutex(data->trinco);
             ReleaseSemaphore(data->hRead, 1, NULL);
     }
@@ -90,8 +88,6 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
         ExitThread(2);
     }
 
-
-    
     int ret = 0;
   
 
