@@ -67,7 +67,6 @@ DWORD WINAPI client_manager(LPVOID lpParam) {
    
 }
 
-
 DWORD WINAPI connect_clients(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
@@ -104,55 +103,25 @@ DWORD WINAPI connect_clients(LPVOID lpParam) {
 DWORD WINAPI move_cars(LPVOID lpParam){
 
     moveParam* p = (moveParam*)lpParam;
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+    COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");;
+    HANDLE evt = p->updateEvent;
 
     while (out_flag == 0) {
 
-        Sleep(p->gameData->track_speed[p->track] * 200);
 
-        for (int i = 0; i < H_GAME; i++) {
-            for (int j = 0; j < W_GAME; j++) {
-                if (p->gameData->table[i][j] != '<' && p->gameData->table[i][j] != 'S' && p->gameData->table[i][j] != '>' && p->gameData->table[i][j] != '-' && p->gameData->table[i][j] != 'O')
-                    p->gameData->table[i][j] = ' ';
-            }
-        }
+        EnterCriticalSection(&p->critical);
+     
+            Sleep(p->gameData->track_speed[p->track] * 200);
+            moveCars(p);
+            copyGame(p->gameData);
+            SetEvent(evt);
 
-        for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O')
-                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
-
-            if (p->gameData->cars[p->track][j].orientation == 1) {
-                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] != 'O')
-                    p->gameData->cars[p->track][j].y += 1;
-                else
-                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
-                if (p->gameData->cars[p->track][j].y >= W_GAME) {
-                    p->gameData->cars[p->track][j].y -= W_GAME - 2;
-                }
-            }
-            else {
-                if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] != 'O')
-                    p->gameData->cars[p->track][j].y -= 1;
-                else
-                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
-
-                if (p->gameData->cars[p->track][j].y < 1) {
-                    p->gameData->cars[p->track][j].y += W_GAME - 2;
-                }
-            }
-
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') {
-
-                if (p->gameData->cars[p->track][j].orientation == 1)
-                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
-                else
-                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
-
-            }
-        }
-
+        LeaveCriticalSection(&p->critical);
 
     }
 
+    FreeLibrary(hinstDLL);
     ExitThread(3);
 
 }
@@ -175,48 +144,46 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
     while (out_flag == 0) {
 
         WaitForSingleObject(p->hRead, INFINITE);
-        WaitForSingleObject(p->hBlock, INFINITE);
+ 
+            if (hinstDLL != NULL) {
+                READ_CMDS_FROM_SHARED_MEMORY cmd_read = (READ_CMDS_FROM_SHARED_MEMORY)GetProcAddress(hinstDLL, "read_cmds_from_shared_memory");
+                cmd_status = cmd_read();
+            }
+            switch (cmd_status)
+            {
+            case 0:
+                break;
+            case 1:
 
-        if (hinstDLL != NULL) {
-            READ_CMDS_FROM_SHARED_MEMORY cmd_read = (READ_CMDS_FROM_SHARED_MEMORY)GetProcAddress(hinstDLL, "read_cmds_from_shared_memory");
-            cmd_status = cmd_read();
-        }
-        switch (cmd_status)
-        {
-        case 0:
-            break;
-        case 1:
+                invertOrientation(p->gameData);
+                break;
+            case 2:
 
-            invertOrientation(p->gameData);
-            break;
-        case 2:
+                setObstacle(p->gameData);
+                break;
 
-            setObstacle(p->gameData);
-            break;
+            case 3:
 
-        case 3:
+                for (int i = 0; i < p->gameData->num_tracks; i++) {
+                    if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
+                        return 1;
+                    }
 
-            for (int i = 0; i < p->gameData->num_tracks; i++) {
-                if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
-                    return 1;
+                }
+                break;
+
+            case 4:
+
+                for (int i = 0; i < p->gameData->num_tracks; i++) {
+                    if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
+                        return 1;
+                    }
+
                 }
 
-            }
-            break;
-
-        case 4:
-
-            for (int i = 0; i < p->gameData->num_tracks; i++) {
-                if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
-                    return 1;
-                }
-
+                break;
             }
 
-            break;
-        }
-
-        ReleaseMutex(p->hBlock);
         ReleaseSemaphore(p->hWrite, 1, NULL);
 
 
@@ -226,6 +193,7 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
     ExitThread(3);
 }
 
+/*
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
@@ -287,9 +255,15 @@ DWORD WINAPI game_manager(LPVOID lpParam) {
     CloseHandle(mutex);
     ExitThread(2);
 }
+*/
 
 DWORD WINAPI input_thread(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
+    HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
+
+    if (shutDown == NULL) {
+        _tprintf(L"[ERROR] input_thread");
+    }
 
     TCHAR command[50];
     INT value;
@@ -302,9 +276,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             if (wcscmp(command, _T("exit")) == 0) {
 
-                HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
                 SetEvent(shutDown);
-                CloseHandle(shutDown);
 
                 out_flag = 1;
                 exit(1);
@@ -329,10 +301,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             }
             else if (wcscmp(command, _T("pause")) == 0) {
 
-                if (SuspendThread(p->thIDs[1]) == (DWORD)-1) {
-                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
-                    return 1;
-                }
+    
 
                 for (int i = 0; i < p->gameData->num_tracks; i++) {
                     if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
@@ -346,11 +315,6 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             }
             else if (wcscmp(command, _T("resume")) == 0) {
-
-                if (ResumeThread(p->thIDs[1]) == (DWORD)-1) {
-                    _tprintf(L"Erro ao retomar a execução da thread. Código de erro: %d\n", GetLastError());
-                    return 1;
-                }
 
                 for (int i = 0; i < p->gameData->num_tracks; i++) {
                     if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
@@ -377,6 +341,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
     }
 
+    CloseHandle(shutDown);
     ExitThread(1);
 }
 
@@ -386,17 +351,18 @@ int _tmain(int argc, TCHAR* argv[]) {
     UNICODE_INITIALIZER();
 
     HANDLE shutDownEvent = CreateEvent(NULL, TRUE, FALSE, SERVER_SHUTDOWN);
-
     HANDLE verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
+    HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
 
-    if (verifySemaphore == NULL)
+    if (verifySemaphore == NULL || mutex == NULL)
         return 1;
 
 
     //verifing if any server was running
 
     if (WaitForSingleObject(verifySemaphore, 0L) != WAIT_OBJECT_0) {
-        _tprintf(SERVER_RUNNING_MSG); Sleep(TIMEOUT);
+        _tprintf(SERVER_RUNNING_MSG);
+        Sleep(TIMEOUT);
         return -1;
     }
 
@@ -435,11 +401,11 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.gameData = &gameData;
     structTh.thIDs = &hThreads;
     structTh.move_threads = &hMovementCars;
-    structTh.hBlock = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
     structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
     structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
+    structTh.updateEvent = CreateEvent(NULL, TRUE, FALSE, UPDATE_EVENT);
 
-    if (structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
+    if  (structTh.hWrite == NULL || structTh.hRead == NULL || structTh.updateEvent == NULL) {
         _tprintf(L"[ERROR] creating handles!\n");
 
         return -1;
@@ -486,13 +452,15 @@ int _tmain(int argc, TCHAR* argv[]) {
     //creating threads 
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[1]);
-    hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[2]);
-    hThreads[3] = CreateThread(NULL, 0, connect_clients, &structTh, 0, &dwIDThreads[3]);
+    hThreads[1] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
+    hThreads[2] = CreateThread(NULL, 0, connect_clients, &structTh, 0, &dwIDThreads[2]);
+    
+
 
     for (int i = 0; i < gameData.num_tracks; i++) {
 
-        structMove->critical = structTh.critical;
+        structMove[i].critical = structTh.critical;
+        structMove[i].updateEvent = structTh.updateEvent;
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
         hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
@@ -508,10 +476,10 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     DeleteCriticalSection(&structTh.critical);
     CloseHandle(verifySemaphore);
+    CloseHandle(structTh.updateEvent);
     SetEvent(shutDownEvent);
     CloseHandle(shutDownEvent);
     CloseHandle(structTh.hWrite);
-    CloseHandle(structTh.hBlock);
     CloseHandle(structTh.hRead);
 
     for (int i = 0; i < N_CLIENTS; i++) {
@@ -565,6 +533,51 @@ int setObstacle(game* g) {
 
 
     return 1;
+
+}
+
+void moveCars(moveParam* p) {
+
+    for (int i = 0; i < H_GAME; i++) {
+        for (int j = 0; j < W_GAME; j++) {
+            if (p->gameData->table[i][j] != '<' && p->gameData->table[i][j] != 'S' && p->gameData->table[i][j] != '>' && p->gameData->table[i][j] != '-' && p->gameData->table[i][j] != 'O')
+                p->gameData->table[i][j] = ' ';
+        }
+    }
+
+    for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
+        if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O')
+            p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
+
+        if (p->gameData->cars[p->track][j].orientation == 1) {
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] != 'O')
+                p->gameData->cars[p->track][j].y += 1;
+            else
+                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
+            if (p->gameData->cars[p->track][j].y >= W_GAME) {
+                p->gameData->cars[p->track][j].y -= W_GAME - 2;
+            }
+        }
+        else {
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] != 'O')
+                p->gameData->cars[p->track][j].y -= 1;
+            else
+                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
+
+            if (p->gameData->cars[p->track][j].y < 1) {
+                p->gameData->cars[p->track][j].y += W_GAME - 2;
+            }
+        }
+
+        if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') {
+
+            if (p->gameData->cars[p->track][j].orientation == 1)
+                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
+            else
+                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
+
+        }
+    }
 
 }
 

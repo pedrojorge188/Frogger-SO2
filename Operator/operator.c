@@ -79,79 +79,84 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
     game* receiver = { 0 };
     
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+    RECEIVE_GAME getGame = (RECEIVE_GAME)GetProcAddress(hinstDLL, "get_game_from_shared_memory");
 
     HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
-    if (mutex == NULL) {
-        _tprintf(L"Fail to open mutex!\n");
+    HANDLE hEvent = OpenEvent(EVENT_ALL_ACCESS, FALSE, UPDATE_EVENT);
+
+    if (mutex == NULL || hEvent == NULL) {
+        _tprintf(L"[ERROR] Fail to open HANDLES!\n");
         CloseHandle(mutex);
         ExitThread(2);
     }
+
+
     
     int ret = 0;
   
 
     while (out_flag == 0) {
         
-        if (hinstDLL != NULL) {
-            RECEIVE_GAME copyGame = (RECEIVE_GAME)GetProcAddress(hinstDLL, "get_game_from_shared_memory");
-            receiver = copyGame();
-        }
-
         WaitForSingleObject(mutex,INFINITE);
-        
+            
+            DWORD result = WaitForSingleObject(hEvent, INFINITE);
 
-        COORD position = { 5 , 2 };
-        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD written;
+            if (result == WAIT_OBJECT_0) {
 
-        for (int i = 0; i < H_GAME; i++) {
-            for (int j = 0; j < W_GAME; j++) {
+                receiver = getGame();
 
-                g.table[i][j] = receiver->table[i][j];
-    
+                COORD position = { 5 , 2 };
+                HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+                DWORD written;
+
+                for (int i = 0; i < H_GAME; i++) {
+                    for (int j = 0; j < W_GAME; j++) {
+
+                        g.table[i][j] = receiver->table[i][j];
+
+                    }
+                }
+
+                g.frogs[0] = receiver->frogs[0]; g.frogs[1] = receiver->frogs[1];
+
+                for (int i = H_GAME - 1; i >= -1; i--) {
+                    for (int j = W_GAME - 1; j >= 0; j--) {
+
+
+                        wchar_t c = g.table[i][j];
+
+                        if (i == receiver->num_tracks + 1 || i == receiver->num_tracks + 2)
+
+                            c = L'_';
+
+                        else if (i == 0 && g.table[i][j] != L'S' || i == -1)
+
+                            c = L'_';
+
+                        if ((j == 0 || j == W_GAME - 1) && i < receiver->num_tracks + 2)
+
+                            c = L'|';
+
+                        WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
+                        position.X++;
+
+                    }
+                    position.Y++;
+                    position.X = 5;
+                }
+
+
+                wchar_t myString[20] = L"Pontos Sapo 1: ";
+                wchar_t myString2[20] = L"Pontos Sapo 2: ";
+                int sp_1 = g.frogs[0].points;
+                int sp_2 = g.frogs[1].points;
+
+                swprintf_s(myString + wcslen(myString), 20 - wcslen(myString), L"%d", sp_1);
+                swprintf_s(myString2 + wcslen(myString2), 20 - wcslen(myString2), L"%d", sp_2);
+
+                WriteConsoleOutputCharacterW(console, myString, wcslen(myString), (COORD) { 0, 15 }, & written);
+                WriteConsoleOutputCharacterW(console, myString2, wcslen(myString2), (COORD) { wcslen(myString2) + 5, 15 }, & written);
             }
-        }
-
-        g.frogs[0] = receiver->frogs[0]; g.frogs[1] = receiver->frogs[1];
-
-        for (int i = H_GAME-1; i >= -1; i--) {
-            for (int j = W_GAME-1; j >= 0; j--) {
-
-
-                wchar_t c = g.table[i][j];
-
-                if (i == receiver->num_tracks + 1 || i == receiver->num_tracks + 2)
-
-                    c = L'_';
-
-                else if (i == 0 && g.table[i][j] != L'S' || i == -1)
-
-                    c = L'_';
-
-                if ((j == 0 || j == W_GAME-1) && i < receiver->num_tracks + 2)
-
-                    c = L'|';
-
-                WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
-                position.X++;
-
-            }
-            position.Y++;
-            position.X = 5;
-        }
-
-
-
-        wchar_t myString[20] = L"Pontos Sapo 1: ";
-        wchar_t myString2[20] = L"Pontos Sapo 2: ";
-        int sp_1 = g.frogs[0].points;
-        int sp_2 = g.frogs[1].points;
-
-        swprintf_s(myString + wcslen(myString), 20 - wcslen(myString), L"%d", sp_1);
-        swprintf_s(myString2 + wcslen(myString2), 20 - wcslen(myString2), L"%d", sp_2);
-       
-        WriteConsoleOutputCharacterW(console, myString, wcslen(myString), (COORD){0, 15}, &written);
-        WriteConsoleOutputCharacterW(console, myString2, wcslen(myString2), (COORD) { wcslen(myString2)+5 , 15 }, & written);
 
         ReleaseMutex(mutex);
         
@@ -159,7 +164,7 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
     FreeLibrary(hinstDLL);
     CloseHandle(mutex);
-    
+    CloseHandle(hEvent);
     ExitThread(2);
 }
 
@@ -180,7 +185,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     data.hRead = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, READ_SEMAPHORE);
     data.hWrite = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, WRITE_SEMAPHORE);
-    data.trinco = OpenMutex(SYNCHRONIZE, FALSE, MUTEX_COMMAND_ACCESS);
+    data.trinco = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
 
 
     if (data.hRead == NULL || data.hWrite == NULL || data.trinco == NULL) {

@@ -15,7 +15,7 @@
 #define MUTEX_COMMAND_ACCESS TEXT("MUTEX_COMANDOS")
 #define PIPE_NAME TEXT("\\\\.\\pipe\\listener")
 #define BUFFER_SIZE 50
-
+#define UPDATE_EVENT TEXT("UPDATE_EVENT")
 #define MAX_FROGS 2
 #define W_GAME 20 //largura da area de jogo (COLUNAS)
 #define H_GAME 10 //altura da area de jogo (LINHAS)
