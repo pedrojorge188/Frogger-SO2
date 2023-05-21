@@ -14,19 +14,16 @@ DWORD WINAPI client_manager(LPVOID lpParam) {
 
     api_pipe msg, start_info;
     thParams* p = (thParams*)lpParam;
-
     int id = connected_clients-1;
 
-    if (id >= 1 && p->gameData->mode == 1) {
-        msg.status = -1;
+    if (id >= 1 && p->gameData->mode == 2) {
 
-        DWORD ret = WriteFile(p->pipe[id].hPipe, &msg, sizeof(msg), 0, NULL);
+        ResumeThread(p->thIDs[3]);
+        for (int i = 0; i < p->gameData->num_tracks; i++) {
+            ResumeThread(p->move_threads[i]);
 
-        p->pipe[id].active = FALSE;
+        }
 
-        SetEvent(p->pipe[id].overlap.hEvent);
-
-        ExitThread(5);
     }
 
     EnterCriticalSection(&p->critical);
@@ -44,9 +41,14 @@ DWORD WINAPI client_manager(LPVOID lpParam) {
         if (start_info.mode == 1) {
  
             p->gameData->mode = 1;
+            ResumeThread(p->thIDs[3]);
+            for (int i = 0; i < p->gameData->num_tracks; i++) {
+                ResumeThread(p->move_threads[i]);
+
+            }
         }
         else if (start_info.mode == 2) {
-      
+            
             p->gameData->mode = 2;
         }
 
@@ -187,7 +189,6 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
     FreeLibrary(hinstDLL);
     ExitThread(3);
 }
-
 
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
@@ -440,7 +441,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
     hThreads[2] = CreateThread(NULL, 0, connect_clients, &structTh, 0, &dwIDThreads[2]);
-    hThreads[3] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[3]);
+    hThreads[3] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[3]);
 
 
     for (int i = 0; i < gameData.num_tracks; i++) {
@@ -449,7 +450,7 @@ int _tmain(int argc, TCHAR* argv[]) {
         structMove[i].updateEvent = structTh.updateEvent;
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
-        hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
+        hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], CREATE_SUSPENDED, NULL);
 
     }
 

@@ -21,7 +21,7 @@ DWORD WINAPI receive_game(HANDLE p) {
         if (data_received > 0) {
               
             if (receive.status == -1) {
-                _tprintf(L"[SERVER] Game Running with gameMode1");
+                _tprintf(L"[SERVER] Game already running in another mode of game!");
                 Sleep(5000);
                 ExitThread(1);
             }
@@ -74,67 +74,39 @@ int _tmain(int argc, TCHAR* argv[]) {
     DWORD dwWaitResult;
 
 
-    if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
-        _tprintf(L"O servidor não está a correr");
-        ExitProcess(1);
+
+    if (!WaitNamedPipe(PIPE_NAME, 1000)) {
+        _tprintf(L"O servidor não está disponivel");
+        exit(-1);
     }
 
+    hPipe = CreateFile(PIPE_NAME,GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 
-    HANDLE verifySemaphore = CreateSemaphore(NULL, MAX_FROGS, MAX_FROGS, FROG_SEMAPHORE);
-
-    if (verifySemaphore == NULL) {
-
-        verifySemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, FROG_SEMAPHORE);
-
-        if (verifySemaphore == NULL) {
-            _tprintf(_T("Erro ao criar semáforo do frog\n"));
-            return 1;
-        }
-
+    if (hPipe == NULL) {
+        _tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), PIPE_NAME);
+        exit(-1);
+    }
+    else {
+        _tprintf(TEXT("[FROG] I'm Connected to server!...\n"));
     }
 
-    dwWaitResult = WaitForSingleObject(verifySemaphore, 0L);
+    api_pipe init;
 
-
-        if (dwWaitResult != WAIT_OBJECT_0) {
-            _tprintf(FROG_RUNNING_MSG);
-            Sleep(TIMEOUT);
-            return -1;
-        }
-
-        if (!WaitNamedPipe(PIPE_NAME, 1000)) {
-            exit(-1);
-        }
-
-        hPipe = CreateFile(PIPE_NAME,GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-
-        if (hPipe == NULL) {
-            _tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), PIPE_NAME);
-            exit(-1);
-        }
-        else {
-            _tprintf(TEXT("[FROG] I'm Connected to server!...\n"));
-        }
-
-        api_pipe init;
-
-        do {
+    do {
         
-            init.mode = 1;
-            DWORD ret = WriteFile(hPipe, &init, sizeof(init), 0, NULL);
+        init.mode = 2;
+        DWORD ret = WriteFile(hPipe, &init, sizeof(init), 0, NULL);
 
-        } while (init.mode == 0);
+    } while (init.mode == 0);
 
-        Threads[0] = CreateThread(NULL, 0, receive_game, hPipe, 0, NULL);
+    Threads[0] = CreateThread(NULL, 0, receive_game, hPipe, 0, NULL);
 
-        _tprintf(L"GAME MODE (%d)", init.mode);
+    _tprintf(L"GAME MODE (%d)", init.mode);
 
-        WaitForMultipleObjects(N_THREADS, &Threads, TRUE, INFINITE);
+    WaitForMultipleObjects(N_THREADS, &Threads, TRUE, INFINITE);
 
-        CloseHandle(hPipe);
-        CloseHandle(verifySemaphore);
+    CloseHandle(hPipe);
 
-    ReleaseSemaphore(verifySemaphore, 1, NULL);
     return 0;
 }
 
