@@ -3,6 +3,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <shellapi.h>
 #include "server.h"
 
 typedef void (*INIT_GAME_MEMORY)(void);
@@ -380,7 +381,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     //Filling game defaults
 
-    game gameData = FillRegistryValues();
+    game gameData = FillRegistryValues(argv);
     FillGameDefaults(&gameData);
 
     //filling threads structures
@@ -677,7 +678,7 @@ int ChangeSpeed(INT value) {
 
 }
 
-game FillRegistryValues() {
+game FillRegistryValues(TCHAR* valsarg[]) {
 
     game gameData;
     HKEY key, KeySuccess;
@@ -686,7 +687,7 @@ game FillRegistryValues() {
     PVOID pvData = wcValue;
 
     //Trata dos dados das estradas para o registry
-
+    _tprintf(L"args: %s %s\n", valsarg[1], valsarg[2]);
     if (RegOpenKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, KEY_READ, &key) == ERROR_SUCCESS) {
 
         DWORD size = sizeof(wcValue);
@@ -703,12 +704,14 @@ game FillRegistryValues() {
     }
     else {
 
-        do {
+       /* do {
             _tprintf(COUT_TRACKS);
             _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
             gameData.num_tracks = (INT)dwValue;
 
-        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);
+        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);*/
+        dwValue = atoi(valsarg[1]);
+        gameData.num_tracks = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
 
@@ -740,8 +743,10 @@ game FillRegistryValues() {
     }
     else {
 
-        _tprintf(COUT_SPEED);
-        _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
+        /*_tprintf(COUT_SPEED);
+        _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));*/
+
+        dwValue = atoi(valsarg[2]);
         gameData.vehicle_speed = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, START_SPEED, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
