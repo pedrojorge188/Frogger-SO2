@@ -25,38 +25,29 @@
 #define COUT_SPEED TEXT("[SERVER] Insira a velocidade inicial dos carros :")
 #define SPEED_COMMAND _T("speed")
 
-#define MAX_THREADS 4
+#define MAX_THREADS 3
 #define CMD_NOT_FOUND TEXT("COMMAND NOT FOUND !\n")
 
 #define DEFAULT 2
 
 int out_flag = 0;
 int counter = 0;
-int connected_clients = 0;
 
 typedef struct moveParam{
 	int track;
-	CRITICAL_SECTION critical;
 	game* gameData;
-	HANDLE updateEvent;
 }moveParam;
-
 
 typedef struct thParams {
 	HANDLE * thIDs;
 	HANDLE * move_threads;
-	HANDLE hEvents[N_CLIENTS];
 	game * gameData;
-	CRITICAL_SECTION critical;
 	HANDLE hWrite;
 	HANDLE hRead;
-	HANDLE updateEvent;
-	PipeData pipe[2];
+	HANDLE hBlock;
 }thParams;
 
 
-void moveCars(moveParam* p);
-void setFrog(game* g, int id);
 void UNICODE_INITIALIZER();
 game FillRegistryValues();
 int FillGameDefaults(game * g);

@@ -3,7 +3,6 @@
 #include <io.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <shellapi.h>
 #include "server.h"
 
 typedef void (*INIT_GAME_MEMORY)(void);
@@ -11,118 +10,53 @@ typedef int (*COPY_GAME_STATUS)(game*);
 typedef void (*INIT_CMDS_MEMORY)(void);
 typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
-DWORD WINAPI client_manager(LPVOID lpParam) {
-
-    api_pipe msg, start_info;
-    thParams* p = (thParams*)lpParam;
-    int id = connected_clients-1;
-
-    if (id >= 1 && p->gameData->mode == 2) {
-
-        ResumeThread(p->thIDs[3]);
-        for (int i = 0; i < p->gameData->num_tracks; i++) {
-            ResumeThread(p->move_threads[i]);
-
-        }
-
-    }
-
-    EnterCriticalSection(&p->critical);
-
-        setFrog(p->gameData, id);
-
-    LeaveCriticalSection(&p->critical);
-
-        _tprintf(L"[SERVER] Frog (%d) Connected \n", id + 1);
-
-        DWORD ret = ReadFile(p->pipe[id].hPipe, &start_info, sizeof(start_info), 0, NULL);
-
-        EnterCriticalSection(&p->critical);
-
-        if (start_info.mode == 1) {
- 
-            p->gameData->mode = 1;
-            ResumeThread(p->thIDs[3]);
-            for (int i = 0; i < p->gameData->num_tracks; i++) {
-                ResumeThread(p->move_threads[i]);
-
-            }
-        }
-        else if (start_info.mode == 2) {
-            
-            p->gameData->mode = 2;
-        }
-
-        LeaveCriticalSection(&p->critical);
-
-    while (out_flag == 0)  {
-
-
-    }
-
-    ExitThread(5);
-   
-}
-
-DWORD WINAPI connect_clients(LPVOID lpParam) {
-
-    thParams* p = (thParams*)lpParam;
-
-    while (out_flag == 0) {
-            
-            DWORD offset = WaitForMultipleObjects(N_CLIENTS, p->hEvents, FALSE, INFINITE);
-            int i = offset - WAIT_OBJECT_0; 
-
-            if (i >= 0 && i < N_CLIENTS) {
-
-                DWORD nBytes;
-
-                if (GetOverlappedResult(p->pipe[i].hPipe,&p->pipe[i].overlap, &nBytes, FALSE)) {
-
-                    ResetEvent(p->hEvents[i]);
-                                     
-                        p->pipe[i].active = TRUE;
-                        p->pipe[i].id = connected_clients;
-                        connected_clients++;
-                        CreateThread(NULL, 0, client_manager, p, 0, NULL);
-
-                }
-            }
- 
-    }
-
-
-    ExitThread(4);
- }
-
-DWORD WINAPI move_cars(LPVOID lpParam){
+DWORD WINAPI move_cars(LPVOID lpParam) {
 
     moveParam* p = (moveParam*)lpParam;
-    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
-    COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
-    HANDLE evt = p->updateEvent;
 
     while (out_flag == 0) {
 
+        Sleep(p->gameData->track_speed[p->track] * 200);
 
-        EnterCriticalSection(&p->critical);
-     
-            Sleep(p->gameData->track_speed[p->track] * 200);
+        for (int i = 0; i < H_GAME; i++) {
+            for (int j = 0; j < W_GAME; j++) {
+                if (p->gameData->table[i][j] != '<' && p->gameData->table[i][j] != 'S' && p->gameData->table[i][j] != '>' && p->gameData->table[i][j] != '-' && p->gameData->table[i][j] != 'O')
+                    p->gameData->table[i][j] = ' ';
+            }
+        }
 
-            moveCars(p);
-            copyGame(p->gameData);
+        for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
+            if (p->gameData->cars[p->track][j].orientation == 1) {
+                p->gameData->cars[p->track][j].y += 1;
+                if (p->gameData->cars[p->track][j].y >= W_GAME) {
+                    p->gameData->cars[p->track][j].y -= W_GAME - 2;
+                }
+            }
+            else {
+                p->gameData->cars[p->track][j].y -= 1;
+                if (p->gameData->cars[p->track][j].y < 1) {
+                    p->gameData->cars[p->track][j].y += W_GAME - 2;
+                }
+            }
 
-            SetEvent(evt);
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') {
 
-        LeaveCriticalSection(&p->critical);
+                if (p->gameData->cars[p->track][j].orientation == 1)
+                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
+                else
+                    p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
+
+            }
+        }
+
 
     }
 
-
-    FreeLibrary(hinstDLL);
     ExitThread(3);
 
 }
+
 
 DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 
@@ -142,46 +76,48 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
     while (out_flag == 0) {
 
         WaitForSingleObject(p->hRead, INFINITE);
- 
+        WaitForSingleObject(p->hBlock, INFINITE);
+
             if (hinstDLL != NULL) {
                 READ_CMDS_FROM_SHARED_MEMORY cmd_read = (READ_CMDS_FROM_SHARED_MEMORY)GetProcAddress(hinstDLL, "read_cmds_from_shared_memory");
                 cmd_status = cmd_read();
             }
             switch (cmd_status)
-            {
-            case 0:
-                break;
-            case 1:
+            {   
+                case 0:
+                    break;
+                case 1:
 
-                invertOrientation(p->gameData);
-                break;
-            case 2:
+                    invertOrientation(p->gameData);
+                    break;
+                case 2:
 
-                setObstacle(p->gameData);
-                break;
+                    setObstacle(p->gameData);
+                    break;
 
-            case 3:
+                case 3:
 
-                for (int i = 0; i < p->gameData->num_tracks; i++) {
-                    if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
-                        return 1;
+                    for (int i = 0; i < p->gameData->num_tracks; i++) {
+                        if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
+                            return 1;
+                        }
+
+                    }
+                    break;
+
+                case 4:
+
+                    for (int i = 0; i < p->gameData->num_tracks; i++) {
+                        if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
+                            return 1;
+                        }
+
                     }
 
-                }
-                break;
-
-            case 4:
-
-                for (int i = 0; i < p->gameData->num_tracks; i++) {
-                    if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
-                        return 1;
-                    }
-
-                }
-
-                break;
+                    break;
             }
 
+        ReleaseMutex(p->hBlock);
         ReleaseSemaphore(p->hWrite, 1, NULL);
 
 
@@ -194,64 +130,41 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
 DWORD WINAPI game_manager(LPVOID lpParam) {
 
     thParams* p = (thParams*)lpParam;
-    api_pipe send;
-    DWORD n;
+    int pause_game = 0;
 
-    HANDLE hEvent = OpenEvent(EVENT_ALL_ACCESS, FALSE, UPDATE_EVENT);
-
-    if (hEvent == NULL) {
-        _tprintf(L"[ERROR] Fail to open HANDLES!\n");
-        ExitThread(4);
+    HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
+    if (mutex == NULL) {
+        _tprintf(L"[ERROR] game_manager thread\n");
+        CloseHandle(mutex);
+        ExitThread(2);
     }
+
+    HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
 
     while (out_flag == 0) {
 
-        DWORD result = WaitForSingleObject(hEvent, INFINITE);
+        COORD position = { 2, 3 };
+        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD written;
 
-        if (result == WAIT_OBJECT_0) {
-
-            COORD position = { 2, 3 };
-            HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-            DWORD written;
-
-            for (int i = 0; i < N_CLIENTS; i++) {
-
-
-                if (p->pipe[i].active) {
-
-                    for (int i = 0; i < H_GAME; i++) {
-                        for (int j = 0; j < W_GAME; j++) {
-
-                            send.table[i][j] = p->gameData->table[i][j];
-                            send.num_tracks = p->gameData->num_tracks;
-
-                        }
-                    }
-
-                    WriteFile(p->pipe[i].hPipe, &send, sizeof(send), &n, NULL);
-
-                }
-
-            }
-           
+        WaitForSingleObject(mutex, INFINITE);
+        
+        if (hinstDLL != NULL) {
+            COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
+            copyGame(p->gameData);
         }
+       
+        ReleaseMutex(mutex);
 
     }
 
-    for (int i = 0; i < N_CLIENTS; i++)
-        SetEvent(p->hEvents[i]);
-
+    FreeLibrary(hinstDLL);
+    CloseHandle(mutex);
     ExitThread(2);
 }
 
-
 DWORD WINAPI input_thread(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
-    HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
-
-    if (shutDown == NULL) {
-        _tprintf(L"[ERROR] input_thread");
-    }
 
     TCHAR command[50];
     INT value;
@@ -264,7 +177,9 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             if (wcscmp(command, _T("exit")) == 0) {
 
+                HANDLE shutDown = OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN);
                 SetEvent(shutDown);
+                CloseHandle(shutDown);
 
                 out_flag = 1;
                 exit(1);
@@ -289,7 +204,10 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
             }
             else if (wcscmp(command, _T("pause")) == 0) {
 
-    
+                if (SuspendThread(p->thIDs[1]) == (DWORD)-1) {
+                    _tprintf(L"[SERVER] Erro ao suspender a thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
 
                 for (int i = 0; i < p->gameData->num_tracks; i++) {
                     if (SuspendThread(p->move_threads[i]) == (DWORD)-1) {
@@ -303,6 +221,11 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
             }
             else if (wcscmp(command, _T("resume")) == 0) {
+
+                if (ResumeThread(p->thIDs[1]) == (DWORD)-1) {
+                    _tprintf(L"Erro ao retomar a execução da thread. Código de erro: %d\n", GetLastError());
+                    return 1;
+                }
 
                 for (int i = 0; i < p->gameData->num_tracks; i++) {
                     if (ResumeThread(p->move_threads[i]) == (DWORD)-1) {
@@ -329,7 +252,6 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
     }
 
-    CloseHandle(shutDown);
     ExitThread(1);
 }
 
@@ -339,26 +261,24 @@ int _tmain(int argc, TCHAR* argv[]) {
     UNICODE_INITIALIZER();
 
     HANDLE shutDownEvent = CreateEvent(NULL, TRUE, FALSE, SERVER_SHUTDOWN);
-    HANDLE verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
-    HANDLE mutex = CreateMutex(NULL, FALSE, SHARED_MUTEX);
 
-    if (verifySemaphore == NULL || mutex == NULL)
+    HANDLE verifySemaphore = CreateSemaphore(NULL, SERVER_LIMIT_USERS, SERVER_LIMIT_USERS, SERVER_SEMAPHORE);
+
+    if (verifySemaphore == NULL)
         return 1;
 
 
     //verifing if any server was running
 
     if (WaitForSingleObject(verifySemaphore, 0L) != WAIT_OBJECT_0) {
-        _tprintf(SERVER_RUNNING_MSG);
-        Sleep(TIMEOUT);
+        _tprintf(SERVER_RUNNING_MSG); Sleep(TIMEOUT);
         return -1;
     }
 
-  
     //Getting dll to initialize our shared memory ...
 
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
-    
+
     if (hinstDLL != NULL) {
         INIT_GAME_MEMORY init = (INIT_GAME_MEMORY)GetProcAddress(hinstDLL, "initialize_game_shared_memory");
         if (init != NULL) {
@@ -381,7 +301,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     //Filling game defaults
 
-    game gameData = FillRegistryValues(argv);
+    game gameData = FillRegistryValues();
     FillGameDefaults(&gameData);
 
     //filling threads structures
@@ -389,70 +309,28 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.gameData = &gameData;
     structTh.thIDs = &hThreads;
     structTh.move_threads = &hMovementCars;
+
+    structTh.hBlock = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
     structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
     structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
-    structTh.updateEvent = CreateEvent(NULL, TRUE, FALSE, UPDATE_EVENT);
 
-    if  (structTh.hWrite == NULL || structTh.hRead == NULL || structTh.updateEvent == NULL) {
+    if ( structTh.hBlock == NULL || structTh.hWrite == NULL || structTh.hRead == NULL) {
         _tprintf(L"[ERROR] creating handles!\n");
 
         return -1;
     }
 
-    //Creating named pipe with overlapped
-
-    for (int i = 0; i < N_CLIENTS; i++) {
-
-        // aqui passamos a constante FILE_FLAG_OVERLAPPED para o named pipe aceitar comunicações assincronas
-        HANDLE hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-            PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
-            N_CLIENTS,
-            sizeof(api_pipe),
-            sizeof(api_pipe),
-            1000,
-            NULL);
-
-        if (hPipe == INVALID_HANDLE_VALUE) {
-            _tprintf(TEXT("[ERROR](CreateNamedPipe)"));
-            exit(-1);
-        }
-
-        HANDLE hEventTemp = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-        if (hEventTemp == NULL) {
-            _tprintf(TEXT("[ERROR] create event (MAIN)\n"));
-            return -1;
-        }
-
-        structTh.pipe[i].hPipe = hPipe;
-        structTh.pipe[i].active = FALSE;
-
-        ZeroMemory(&structTh.pipe[i].overlap, sizeof(structTh.pipe[i].overlap));
-
-        structTh.pipe[i].overlap.hEvent = hEventTemp;
-        structTh.hEvents[i] = hEventTemp;
-
-        ConnectNamedPipe(hPipe, &structTh.pipe[i].overlap);
-    }
-
-    InitializeCriticalSection(&structTh.critical);
 
     //creating threads 
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
-    hThreads[2] = CreateThread(NULL, 0, connect_clients, &structTh, 0, &dwIDThreads[2]);
-    hThreads[3] = CreateThread(NULL, 0, game_manager, &structTh, CREATE_SUSPENDED, &dwIDThreads[3]);
-
+    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[1]);
+    hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
 
     for (int i = 0; i < gameData.num_tracks; i++) {
-
-        structMove[i].critical = structTh.critical;
-        structMove[i].updateEvent = structTh.updateEvent;
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
-        hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], CREATE_SUSPENDED, NULL);
-
+        hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
     }
 
 
@@ -460,23 +338,16 @@ int _tmain(int argc, TCHAR* argv[]) {
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
     WaitForMultipleObjects(gameData.num_tracks, &hMovementCars, TRUE, INFINITE);
 
+
     //closing handles
 
-    DeleteCriticalSection(&structTh.critical);
     CloseHandle(verifySemaphore);
-    CloseHandle(structTh.updateEvent);
     SetEvent(shutDownEvent);
     CloseHandle(shutDownEvent);
+
     CloseHandle(structTh.hWrite);
+    CloseHandle(structTh.hBlock);
     CloseHandle(structTh.hRead);
-
-    for (int i = 0; i < N_CLIENTS; i++) {
-
-        if (!DisconnectNamedPipe(structTh.pipe[i].hPipe)) {
-            _tprintf(TEXT("[ERRO](DisconnectNamedPipe)"));
-            exit(-1);
-        }
-    }
 
     return 0;
 }
@@ -524,74 +395,6 @@ int setObstacle(game* g) {
 
 }
 
-void moveCars(moveParam* p) {
-
-    for (int i = 0; i < H_GAME; i++) {
-        for (int j = 0; j < W_GAME; j++) {
-            if (p->gameData->table[i][j] != '<' && p->gameData->table[i][j] != 'S' && p->gameData->table[i][j] != '>' && p->gameData->table[i][j] != '-' && p->gameData->table[i][j] != 'O')
-                p->gameData->table[i][j] = ' ';
-        }
-    }
-
-    for (int j = 0; j < p->gameData->n_cars_per_track; j++) {
-        if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O')
-            p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
-
-        if (p->gameData->cars[p->track][j].orientation == 1) {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] != 'O')
-                p->gameData->cars[p->track][j].y += 1;
-            else
-                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
-            if (p->gameData->cars[p->track][j].y >= W_GAME) {
-                p->gameData->cars[p->track][j].y -= W_GAME - 2;
-            }
-        }
-        else {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] != 'O')
-                p->gameData->cars[p->track][j].y -= 1;
-            else
-                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
-
-            if (p->gameData->cars[p->track][j].y < 1) {
-                p->gameData->cars[p->track][j].y += W_GAME - 2;
-            }
-        }
-
-        if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] != 'O') {
-
-            if (p->gameData->cars[p->track][j].orientation == 1)
-                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '<';
-            else
-                p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = '>';
-
-        }
-    }
-
-}
-
-void setFrog(game * g, int id) {
-
-    srand(time(NULL));
-
-    int k = 0;
-
-    do {
-        g->frogs[id].x = 0;
-        g->frogs[id].y = rand() % W_GAME;
-
-        if (g->table[g->frogs[id].x][g->frogs[id].y] != 'S') {
-
-            k = 1;
-        }
-  
-
-    } while (k == 0);
-
-    g->table[g->frogs[id].x][g->frogs[id].y] = 'S';
-
-
-}
-
 int FillGameDefaults(game* g) {
 
     srand(time(NULL));
@@ -602,6 +405,15 @@ int FillGameDefaults(game* g) {
         g->n_cars_per_track = DEFAULT;
 
     memset(g->table, ' ', sizeof(g->table));
+
+    //colocar os sapos->META 1
+
+    for (int i = 0; i < MAX_FROGS; i++) {
+        g->frogs[i].x = 0;
+        g->frogs[i].y = rand() % W_GAME;
+        g->frogs[i].points = 0;
+        g->table[g->frogs[i].x][g->frogs[i].y] = 'S';
+    }
 
 
     //Colocar os carros
@@ -678,7 +490,7 @@ int ChangeSpeed(INT value) {
 
 }
 
-game FillRegistryValues(TCHAR* valsarg[]) {
+game FillRegistryValues() {
 
     game gameData;
     HKEY key, KeySuccess;
@@ -687,7 +499,7 @@ game FillRegistryValues(TCHAR* valsarg[]) {
     PVOID pvData = wcValue;
 
     //Trata dos dados das estradas para o registry
-    //_tprintf(L"args: %s %s\n", valsarg[1], valsarg[2]);
+
     if (RegOpenKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, KEY_READ, &key) == ERROR_SUCCESS) {
 
         DWORD size = sizeof(wcValue);
@@ -704,20 +516,12 @@ game FillRegistryValues(TCHAR* valsarg[]) {
     }
     else {
 
-       /* do {
+        do {
             _tprintf(COUT_TRACKS);
             _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
             gameData.num_tracks = (INT)dwValue;
 
-        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);*/
-        
-
-        if (valsarg[1] == NULL || atoi(valsarg[1]) <= 0)
-            dwValue = NTRACKS_DEFAULT;
-        else
-            dwValue = atoi(valsarg[1]);
-
-        gameData.num_tracks = (INT)dwValue;
+        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
 
@@ -749,14 +553,8 @@ game FillRegistryValues(TCHAR* valsarg[]) {
     }
     else {
 
-        /*_tprintf(COUT_SPEED);
-        _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));*/
-
-       if (valsarg[1] == NULL || valsarg[2] == NULL || atoi(valsarg[2]) <= 0)
-            dwValue = VEL_DEFAULT;
-       else
-           dwValue = atoi(valsarg[2]);
-
+        _tprintf(COUT_SPEED);
+        _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
         gameData.vehicle_speed = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, START_SPEED, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {

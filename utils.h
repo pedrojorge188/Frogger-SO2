@@ -13,25 +13,13 @@
 #define WRITE_SEMAPHORE  TEXT("SEMAFORO_ESCRITA")
 #define READ_SEMAPHORE  TEXT("SEMAFORO_LEITURA")
 #define MUTEX_COMMAND_ACCESS TEXT("MUTEX_COMANDOS")
-#define PIPE_NAME TEXT("\\\\.\\pipe\\listener")
 #define BUFFER_SIZE 50
-#define UPDATE_EVENT TEXT("UPDATE_EVENT")
+
 #define MAX_FROGS 2
 #define W_GAME 20 //largura da area de jogo (COLUNAS)
 #define H_GAME 10 //altura da area de jogo (LINHAS)
 #define MAX_VEHICLES 8
-#define N_CLIENTS 2
-#define VEL_DEFAULT 2
-#define NTRACKS_DEFAULT 5
 
-typedef struct PipeData {
-
-	int id;
-	HANDLE hPipe;
-	OVERLAPPED overlap;
-	BOOL active;
-
-}PipeData;
 
 typedef struct frog {
 	int x, y;
@@ -42,6 +30,7 @@ typedef struct vehicles {
 	int x, y;
 	int orientation; // 1-> direita para a esquerda, 2-> esquerda para a direita
 } vehicles;
+
 
 typedef struct game {
 
@@ -55,14 +44,5 @@ typedef struct game {
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
 
 }game;
-
-typedef struct api_pipe {
-
-	int mode;
-	int status;
-	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
-	INT num_tracks;
-
-} api_pipe;
 
 #endif
