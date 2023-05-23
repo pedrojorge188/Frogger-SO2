@@ -10,11 +10,47 @@ typedef int (*COPY_GAME_STATUS)(game*);
 typedef void (*INIT_CMDS_MEMORY)(void);
 typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
-void CALLBACK ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
+
+
+void ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
+
 
 }
 
-void CALLBACK WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
+void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
+
+
+
+}
+
+DWORD WINAPI cliente_manager(LPVOID lpParam) {
+
+    thParams* p = (thParams*)lpParam;
+    api receive;
+    int id = p->frogs_connected-1;
+    BOOL ret;
+    DWORD bytesAvailable = 0;
+
+    while (out_flag == 0) {
+
+        BOOL pipeHasData = PeekNamedPipe(p->hPipes[id].hPipe, NULL, 0, NULL, &bytesAvailable, NULL);
+
+        if (pipeHasData && bytesAvailable > 0) {
+
+            ret = ReadFileEx(p->hPipes[id].hPipe, &receive, sizeof(receive), &p->hPipes[id].overlap, &ReadCompletionRoutine);
+
+            DWORD dwBytesTransferred = 0;
+
+            if (GetOverlappedResult(p->hPipes[id].hPipe, &p->hPipes[id].overlap, &dwBytesTransferred, TRUE)) {
+
+                if (dwBytesTransferred > 0 && receive.key != 0) {
+                    _tprintf(L"(%d Recebida) pelo frog (%d)\n", receive.key, id);
+
+                }
+
+            }
+        }
+    }
 
 }
 
@@ -362,6 +398,10 @@ int _tmain(int argc, TCHAR* argv[]) {
                 for (int i = 0; i < gameData.num_tracks; i++) {
                     structMove[i].hPipes[index] = structTh.hPipes[index];
                 }
+
+                CreateThread(NULL, 0, cliente_manager, &structTh, 0, NULL);
+
+                setFrog(structTh.gameData, index);
 
                 LeaveCriticalSection(&structTh.critical);
 
