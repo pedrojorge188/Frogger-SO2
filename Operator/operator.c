@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-typedef game * (*RECEIVE_GAME)(void);
-typedef int (*WRITE_CMD)(TCHAR *);
+typedef game* (*RECEIVE_GAME)(void);
+typedef int (*WRITE_CMD)(TCHAR*);
 
 DWORD WINAPI server_info(LPVOID lpParam) {
 
@@ -42,28 +42,26 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
     COORD pos = { 0 , 18 };
 
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+    WRITE_CMD writeCmd = (WRITE_CMD)GetProcAddress(hinstDLL, "write_cmds_to_shared_memory");
 
     while (wcscmp(command, _T("exit")) != 0) {
-           
 
-         
-            SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
-            SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
 
-            _tprintf(L"->");
 
-            _tscanf_s(_T("%s %d"), command, 50, &value);
+        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
+        SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
 
-            WaitForSingleObject(data->hWrite, INFINITE);
-            WaitForSingleObject(data->trinco, INFINITE);
-           
-            if (hinstDLL != NULL) {
-                WRITE_CMD writeCmd = (WRITE_CMD)GetProcAddress(hinstDLL, "write_cmds_to_shared_memory");
-                writeCmd(command);
-            }
-   
-            ReleaseMutex(data->trinco);
-            ReleaseSemaphore(data->hRead, 1, NULL);
+        _tprintf(L"->");
+
+        _tscanf_s(_T("%s %d"), command, 50, &value);
+
+        WaitForSingleObject(data->hWrite, INFINITE);
+        WaitForSingleObject(data->trinco, INFINITE);
+
+        writeCmd(command);
+
+        ReleaseMutex(data->trinco);
+        ReleaseSemaphore(data->hRead, 1, NULL);
     }
 
     FreeLibrary(hinstDLL);
@@ -77,101 +75,104 @@ DWORD WINAPI game_informations(LPVOID lpParam) {
 
     game g;
     game* receiver = { 0 };
-    
+
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
+    RECEIVE_GAME getGame = (RECEIVE_GAME)GetProcAddress(hinstDLL, "get_game_from_shared_memory");
 
     HANDLE mutex = OpenMutex(SYNCHRONIZE, FALSE, SHARED_MUTEX);
-    if (mutex == NULL) {
-        _tprintf(L"Fail to open mutex!\n");
+    HANDLE hEvent = OpenEvent(EVENT_ALL_ACCESS, FALSE, UPDATE_EVENT);
+
+    if (mutex == NULL || hEvent == NULL) {
+        _tprintf(L"[ERROR] Fail to open HANDLES!\n");
         CloseHandle(mutex);
         ExitThread(2);
     }
-    
+
     int ret = 0;
-  
+
 
     while (out_flag == 0) {
-        
-        if (hinstDLL != NULL) {
-            RECEIVE_GAME copyGame = (RECEIVE_GAME)GetProcAddress(hinstDLL, "get_game_from_shared_memory");
-            receiver = copyGame();
-        }
 
-        WaitForSingleObject(mutex,INFINITE);
-        
+        WaitForSingleObject(mutex, INFINITE);
 
-        COORD position = { 5 , 2 };
-        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD written;
+        DWORD result = WaitForSingleObject(hEvent, INFINITE);
 
-        for (int i = 0; i < H_GAME; i++) {
-            for (int j = 0; j < W_GAME; j++) {
+        if (result == WAIT_OBJECT_0) {
 
-                g.table[i][j] = receiver->table[i][j];
-    
+            receiver = getGame();
+
+            COORD position = { 5 , 2 };
+            HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+            DWORD written;
+
+            for (int i = 0; i < H_GAME; i++) {
+                for (int j = 0; j < W_GAME; j++) {
+
+                    g.table[i][j] = receiver->table[i][j];
+
+                }
             }
-        }
 
-        g.frogs[0] = receiver->frogs[0]; g.frogs[1] = receiver->frogs[1];
+            g.frogs[0] = receiver->frogs[0]; g.frogs[1] = receiver->frogs[1];
 
-        for (int i = H_GAME-1; i >= -1; i--) {
-            for (int j = W_GAME-1; j >= 0; j--) {
+            for (int i = H_GAME - 1; i >= -1; i--) {
+                for (int j = W_GAME - 1; j >= 0; j--) {
 
 
-                wchar_t c = g.table[i][j];
+                    wchar_t c = g.table[i][j];
 
-                if (i == receiver->num_tracks + 1 || i == receiver->num_tracks + 2)
+                    if (i == receiver->num_tracks + 1 || i == receiver->num_tracks + 2)
 
-                    c = L'_';
+                        c = L'_';
 
-                else if (i == 0 && g.table[i][j] != L'S' || i == -1)
+                    else if (i == 0 && g.table[i][j] != L'S' || i == -1)
 
-                    c = L'_';
+                        c = L'_';
 
-                if ((j == 0 || j == W_GAME-1) && i < receiver->num_tracks + 2)
+                    if ((j == 0 || j == W_GAME - 1) && i < receiver->num_tracks + 2)
 
-                    c = L'|';
+                        c = L'|';
 
-                WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
-                position.X++;
+                    WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
+                    position.X++;
 
+                }
+                position.Y++;
+                position.X = 5;
             }
-            position.Y++;
-            position.X = 5;
+
+
+            wchar_t myString[20] = L"Pontos Sapo 1: ";
+            wchar_t myString2[20] = L"Pontos Sapo 2: ";
+            int sp_1 = g.frogs[0].points;
+            int sp_2 = g.frogs[1].points;
+
+            swprintf_s(myString + wcslen(myString), 20 - wcslen(myString), L"%d", sp_1);
+            swprintf_s(myString2 + wcslen(myString2), 20 - wcslen(myString2), L"%d", sp_2);
+
+            WriteConsoleOutputCharacterW(console, myString, wcslen(myString), (COORD) { 0, 15 }, & written);
+            WriteConsoleOutputCharacterW(console, myString2, wcslen(myString2), (COORD) { wcslen(myString2) + 5, 15 }, & written);
         }
-
-
-
-        wchar_t myString[20] = L"Pontos Sapo 1: ";
-        wchar_t myString2[20] = L"Pontos Sapo 2: ";
-        int sp_1 = g.frogs[0].points;
-        int sp_2 = g.frogs[1].points;
-
-        swprintf_s(myString + wcslen(myString), 20 - wcslen(myString), L"%d", sp_1);
-        swprintf_s(myString2 + wcslen(myString2), 20 - wcslen(myString2), L"%d", sp_2);
-       
-        WriteConsoleOutputCharacterW(console, myString, wcslen(myString), (COORD){0, 15}, &written);
-        WriteConsoleOutputCharacterW(console, myString2, wcslen(myString2), (COORD) { wcslen(myString2)+5 , 15 }, & written);
 
         ReleaseMutex(mutex);
-        
+
     }
 
     FreeLibrary(hinstDLL);
     CloseHandle(mutex);
-    
+    CloseHandle(hEvent);
     ExitThread(2);
 }
 
 int _tmain(int argc, TCHAR* argv[]) {
-       
+
     UNICODE_INITIALIZER();
-    
+
     if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
         _tprintf(L"O servidor não está a correr");
         return -1;
     }
-    
+
 
     DataTh data;
 
@@ -180,7 +181,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     data.hRead = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, READ_SEMAPHORE);
     data.hWrite = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, WRITE_SEMAPHORE);
-    data.trinco = OpenMutex(SYNCHRONIZE, FALSE, MUTEX_COMMAND_ACCESS);
+    data.trinco = CreateMutex(NULL, FALSE, MUTEX_COMMAND_ACCESS);
 
 
     if (data.hRead == NULL || data.hWrite == NULL || data.trinco == NULL) {
@@ -199,7 +200,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     CloseHandle(data.trinco);
 
     return 0;
-   
+
 }
 
 
@@ -210,10 +211,9 @@ void UNICODE_INITIALIZER() {
     _setmode(_fileno(stderr), _O_WTEXT);
 #endif
 
-COORD c = { 0,0 };
-SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
-SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN);
+    COORD c = { 0,0 };
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN);
 
-_tprintf(TEXT("-----------OPERATOR--------------\n"));
+    _tprintf(TEXT("-----------OPERATOR--------------\n"));
 }
-

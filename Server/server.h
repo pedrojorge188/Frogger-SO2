@@ -36,6 +36,8 @@ int counter = 0;
 typedef struct moveParam{
 	int track;
 	game* gameData;
+	CRITICAL_SECTION critical;
+	HANDLE updateEvent;
 }moveParam;
 
 typedef struct thParams {
@@ -44,10 +46,13 @@ typedef struct thParams {
 	game * gameData;
 	HANDLE hWrite;
 	HANDLE hRead;
-	HANDLE hBlock;
+	CRITICAL_SECTION critical;
+	HANDLE updateEvent;
+
 }thParams;
 
 
+void moveCars(thParams * p);
 void UNICODE_INITIALIZER();
 game FillRegistryValues();
 int FillGameDefaults(game * g);
