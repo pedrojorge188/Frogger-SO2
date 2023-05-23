@@ -38,7 +38,7 @@ typedef struct moveParam{
 	game* gameData;
 	CRITICAL_SECTION critical;
 	HANDLE updateEvent;
-
+	int frogs_connected;
 	HANDLE overlapEvents[2];
 	PipeData hPipes[2];
 }moveParam;
@@ -58,6 +58,10 @@ typedef struct thParams {
 
 }thParams;
 
+void WritePipe(PipeData* p, game* g);
+void moveUp(game* g, int id);
+void moveRight(game* g, int id);
+void moveLeft(game* g, int id);
 void setFrog(game* g, int id);
 void moveCars(thParams * p);
 void UNICODE_INITIALIZER();
