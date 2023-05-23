@@ -9,38 +9,9 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     UNICODE_INITIALIZER();
 
-    HANDLE verifySemaphore;
-    DWORD dwWaitResult;
-
-    if (OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, SERVER_SEMAPHORE) == NULL) {
-        _tprintf(L"O servidor não está a correr");
-        ExitProcess(1);
-    }
-
-    verifySemaphore = CreateSemaphore(NULL, MAX_FROGS, MAX_FROGS, FROG_SEMAPHORE);
-
-    if (verifySemaphore == NULL) {
-
-        verifySemaphore = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, FROG_SEMAPHORE);
-
-        if (verifySemaphore == NULL) {
-            _tprintf(_T("Erro ao criar semáforo do frog\n"));
-            return 1;
-        }
-        
-    }
-
-    dwWaitResult = WaitForSingleObject(verifySemaphore, 0L);
-    if (dwWaitResult != WAIT_OBJECT_0) {
-        _tprintf(FROG_RUNNING_MSG); Sleep(TIMEOUT);
-        return -1;
-    }
-
     _tprintf(_T("Entrou\n"));
     Sleep(10000);
-    
 
-    CloseHandle(verifySemaphore);
 
     return 0;
 }

@@ -10,6 +10,7 @@
 #define SERVER_SEMAPHORE TEXT("ServerInstances")
 #define SERVER_SHUTDOWN TEXT("ServerExit")
 #define SHARED_MUTEX TEXT("SHARED_MUTEX")
+#define PIPE_NAME TEXT("\\\\.\\pipe\\dataPipe")
 #define UPDATE_EVENT TEXT("UPDATE_EVENT")
 #define WRITE_SEMAPHORE  TEXT("SEMAFORO_ESCRITA")
 #define READ_SEMAPHORE  TEXT("SEMAFORO_LEITURA")
@@ -24,6 +25,13 @@
 #define VEL_DEFAULT 2
 #define NTRACKS_DEFAULT 5
 
+typedef struct PipeData {
+
+	HANDLE hPipe; 
+	OVERLAPPED overlap;
+	BOOL active;
+
+} PipeData;
 
 typedef struct frog {
 	int x, y;
@@ -48,5 +56,11 @@ typedef struct game {
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
 
 }game;
+
+typedef struct api {
+	int msg;
+	int key;
+	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
+}api;
 
 #endif

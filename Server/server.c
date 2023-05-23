@@ -25,6 +25,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
         Sleep(p->gameData->track_speed[p->track] * 200);
 
         moveCars(p);
+
         copyGame(p->gameData);
 
         SetEvent(evt);
@@ -32,7 +33,6 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
         LeaveCriticalSection(&p->critical);
 
     }
-
 
     FreeLibrary(hinstDLL);
     ExitThread(3);
@@ -54,6 +54,7 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
         cmd_status = 3 -> stopcars
         cmd_status = 4 -> resume car movement
     */
+
 
 
     while (out_flag == 0) {
@@ -106,35 +107,6 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
     ExitThread(3);
 }
 
-
-DWORD WINAPI game_manager(LPVOID lpParam) {
-    thParams* p = (thParams*)lpParam;
-
-    HANDLE hEvent = OpenEvent(EVENT_ALL_ACCESS, FALSE, UPDATE_EVENT);
-
-    if (hEvent == NULL) {
-        _tprintf(L"[ERROR] Fail to open HANDLES!\n");
-        ExitThread(4);
-    }
-
-    while (out_flag == 0) {
-
-        DWORD result = WaitForSingleObject(hEvent, INFINITE);
-
-        if (result == WAIT_OBJECT_0) {
-
-            COORD position = { 2, 3 };
-            HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-            DWORD written;
-
-          
-        }
-
-    }
-
-
-    ExitThread(2);
-}
 
 DWORD WINAPI input_thread(LPVOID lpParam) {
     thParams* p = (thParams*)lpParam;
@@ -296,11 +268,33 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     InitializeCriticalSection(&structTh.critical);
 
-    //creating threads 
+    for (int i = 0; i < 2; i++) {
+
+        HANDLE hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+            PIPE_NOWAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+            2, sizeof(api), sizeof(api), 1000, NULL);
+        
+        if (hPipe == INVALID_HANDLE_VALUE) { _tprintf(L"[ERROR] Create hPipe (%d)\n", i); exit(-1);}
+
+        HANDLE hEventTemp = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+        if (hEventTemp == NULL) { _tprintf(L"[ERROR] Create hEventTemp (%d)\n", i); exit(-1); }
+
+        structTh.hPipes[i].hPipe = hPipe;
+        structTh.hPipes[i].active = FALSE;
+        ZeroMemory(&structTh.hPipes[i].overlap, sizeof(structTh.hPipes[i].overlap));
+        structTh.hPipes[i].overlap.hEvent = hEventTemp;
+        structTh.overlapEvents[i] = hEventTemp;
+        structTh.frogs_connected = 0;
+        _tprintf(L" [SUCCESS] Named Pipe (%d) created ! \n", i);
+
+        ConnectNamedPipe(hPipe, &structTh.hPipes[i].overlap);
+
+    }
+
 
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
-    hThreads[1] = CreateThread(NULL, 0, game_manager, &structTh, 0, &dwIDThreads[1]);
-    hThreads[2] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
+    hThreads[1] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
 
     for (int i = 0; i < gameData.num_tracks; i++) {
 
@@ -308,7 +302,38 @@ int _tmain(int argc, TCHAR* argv[]) {
         structMove[i].updateEvent = structTh.updateEvent;
         structMove[i].gameData = &gameData;
         structMove[i].track = i;
+        structMove[i].hPipes[0] = structTh.hPipes[0];
+        structMove[i].hPipes[1] = structTh.hPipes[1];
+        structMove[i].overlapEvents[0] = structTh.overlapEvents[0];
+        structMove[i].overlapEvents[1] = structTh.overlapEvents[1];
         hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
+    }
+
+    DWORD offset, nBytes;
+    int index = 0;
+
+    while (out_flag == 0) {
+
+        offset = WaitForMultipleObjects(2, structTh.overlapEvents, FALSE, INFINITE);
+        index = offset - WAIT_OBJECT_0;
+
+        if (index >= 0 && index < 2) {
+
+            if (GetOverlappedResult(structTh.hPipes[index].hPipe, &structTh.hPipes[index].overlap, &nBytes, FALSE)) {
+
+                ResetEvent(structTh.overlapEvents[index]);
+
+                EnterCriticalSection(&structTh.critical);
+
+                structTh.hPipes[index].active = TRUE;
+
+                LeaveCriticalSection(&structTh.critical);
+
+                structTh.frogs_connected += 1;
+            }
+
+        }
+
     }
 
 
@@ -327,6 +352,29 @@ int _tmain(int argc, TCHAR* argv[]) {
     CloseHandle(structTh.hRead);
 
     return 0;
+}
+
+void setFrog(game* g, int id) {
+
+    srand(time(NULL));
+
+    int k = 0;
+
+    do {
+        g->frogs[id].x = 0;
+        g->frogs[id].y = rand() % W_GAME;
+
+        if (g->table[g->frogs[id].x][g->frogs[id].y] != 'S') {
+
+            k = 1;
+        }
+
+
+    } while (k == 0);
+
+    g->table[g->frogs[id].x][g->frogs[id].y] = 'S';
+
+
 }
 
 void moveCars(moveParam* p) {
@@ -427,16 +475,6 @@ int FillGameDefaults(game* g) {
         g->n_cars_per_track = DEFAULT;
 
     memset(g->table, ' ', sizeof(g->table));
-
-    //colocar os sapos->META 1
-
-    for (int i = 0; i < MAX_FROGS; i++) {
-        g->frogs[i].x = 0;
-        g->frogs[i].y = rand() % W_GAME;
-        g->frogs[i].points = 0;
-        g->table[g->frogs[i].x][g->frogs[i].y] = 'S';
-    }
-
 
     //Colocar os carros
     for (int i = 0; i < g->num_tracks; i++) {
