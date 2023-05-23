@@ -25,6 +25,8 @@
 #define VEL_DEFAULT 2
 #define NTRACKS_DEFAULT 5
 
+
+
 typedef struct PipeData {
 
 	HANDLE hPipe; 
@@ -60,7 +62,9 @@ typedef struct game {
 typedef struct api {
 	int msg;
 	int key;
+	int num_tracks;			// Numero de estradas
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização
 }api;
+
 
 #endif

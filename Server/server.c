@@ -10,6 +10,15 @@ typedef int (*COPY_GAME_STATUS)(game*);
 typedef void (*INIT_CMDS_MEMORY)(void);
 typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
+void CALLBACK ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
+
+}
+
+void CALLBACK WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
+
+}
+
+
 DWORD WINAPI move_cars(LPVOID lpParam) {
 
     moveParam* p = (moveParam*)lpParam;
@@ -17,18 +26,39 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
     COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
     HANDLE evt = p->updateEvent;
 
+    api send; DWORD n;
+
     while (out_flag == 0) {
 
 
         EnterCriticalSection(&p->critical);
 
-        Sleep(p->gameData->track_speed[p->track] * 200);
+            Sleep(p->gameData->track_speed[p->track] * 200);
 
-        moveCars(p);
+            moveCars(p);
 
-        copyGame(p->gameData);
+            for (int i = 0; i < 2; i++) {
 
-        SetEvent(evt);
+                if (p->hPipes[i].active == TRUE) {
+
+                    for (int i = 0; i < H_GAME; i++) {
+                        for (int j = 0; j < W_GAME; j++) {
+
+                            send.table[i][j] = p->gameData->table[i][j];
+                            send.num_tracks = p->gameData->num_tracks;
+
+                        }
+                    }
+
+                    WriteFileEx(p->hPipes[i].hPipe, &send, sizeof(send), &p->hPipes[i].overlap, &WriteCompletionRoutine);
+
+                }
+
+            }
+
+            copyGame(p->gameData);
+
+            SetEvent(evt);
 
         LeaveCriticalSection(&p->critical);
 
@@ -271,7 +301,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     for (int i = 0; i < 2; i++) {
 
         HANDLE hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-            PIPE_NOWAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+            PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
             2, sizeof(api), sizeof(api), 1000, NULL);
         
         if (hPipe == INVALID_HANDLE_VALUE) { _tprintf(L"[ERROR] Create hPipe (%d)\n", i); exit(-1);}
@@ -321,11 +351,17 @@ int _tmain(int argc, TCHAR* argv[]) {
 
             if (GetOverlappedResult(structTh.hPipes[index].hPipe, &structTh.hPipes[index].overlap, &nBytes, FALSE)) {
 
+                _tprintf(L"[FROG] (%d) connected!\n", index + 1);
+
                 ResetEvent(structTh.overlapEvents[index]);
 
                 EnterCriticalSection(&structTh.critical);
 
                 structTh.hPipes[index].active = TRUE;
+
+                for (int i = 0; i < gameData.num_tracks; i++) {
+                    structMove[i].hPipes[index] = structTh.hPipes[index];
+                }
 
                 LeaveCriticalSection(&structTh.critical);
 
@@ -341,6 +377,14 @@ int _tmain(int argc, TCHAR* argv[]) {
     WaitForMultipleObjects(MAX_THREADS, &hThreads, TRUE, INFINITE);
     WaitForMultipleObjects(gameData.num_tracks, &hMovementCars, TRUE, INFINITE);
 
+    for (int i = 0; i < 2; i++) {
+
+        //desliga todas as instancias de named pipes
+        if (!DisconnectNamedPipe(structTh.hPipes[i].hPipe)) {
+            _tprintf(TEXT("[ERRO] Disconnecting Pipe (%d)! (DisconnectNamedPipe)"), i);
+            exit(-1);
+        }
+    }
 
     //closing handles
 
@@ -350,6 +394,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     CloseHandle(shutDownEvent);
     CloseHandle(structTh.hWrite);
     CloseHandle(structTh.hRead);
+
 
     return 0;
 }
