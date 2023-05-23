@@ -21,6 +21,8 @@
 #define H_GAME 10 //altura da area de jogo (LINHAS)
 #define MAX_VEHICLES 8
 #define N_CLIENTS 2
+#define VEL_DEFAULT 2
+#define NTRACKS_DEFAULT 5
 
 typedef struct PipeData {
 

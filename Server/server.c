@@ -687,7 +687,7 @@ game FillRegistryValues(TCHAR* valsarg[]) {
     PVOID pvData = wcValue;
 
     //Trata dos dados das estradas para o registry
-    _tprintf(L"args: %s %s\n", valsarg[1], valsarg[2]);
+    //_tprintf(L"args: %s %s\n", valsarg[1], valsarg[2]);
     if (RegOpenKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, KEY_READ, &key) == ERROR_SUCCESS) {
 
         DWORD size = sizeof(wcValue);
@@ -710,7 +710,13 @@ game FillRegistryValues(TCHAR* valsarg[]) {
             gameData.num_tracks = (INT)dwValue;
 
         } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);*/
-        dwValue = atoi(valsarg[1]);
+        
+
+        if (valsarg[1] == NULL || atoi(valsarg[1]) <= 0)
+            dwValue = NTRACKS_DEFAULT;
+        else
+            dwValue = atoi(valsarg[1]);
+
         gameData.num_tracks = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
@@ -746,7 +752,11 @@ game FillRegistryValues(TCHAR* valsarg[]) {
         /*_tprintf(COUT_SPEED);
         _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));*/
 
-        dwValue = atoi(valsarg[2]);
+       if (valsarg[1] == NULL || valsarg[2] == NULL || atoi(valsarg[2]) <= 0)
+            dwValue = VEL_DEFAULT;
+       else
+           dwValue = atoi(valsarg[2]);
+
         gameData.vehicle_speed = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, START_SPEED, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
