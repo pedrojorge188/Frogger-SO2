@@ -13,14 +13,9 @@ typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
 
 void ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
-
-
 }
 
 void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
-
-
-
 }
 
 DWORD WINAPI cliente_manager(LPVOID lpParam) {
@@ -33,24 +28,30 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
 
     while (out_flag == 0) {
 
+
         BOOL pipeHasData = PeekNamedPipe(p->hPipes[id].hPipe, NULL, 0, NULL, &bytesAvailable, NULL);
 
         if (pipeHasData && bytesAvailable > 0) {
 
             ret = ReadFileEx(p->hPipes[id].hPipe, &receive, sizeof(receive), &p->hPipes[id].overlap, &ReadCompletionRoutine);
 
-            DWORD dwBytesTransferred = 0;
-
-            if (GetOverlappedResult(p->hPipes[id].hPipe, &p->hPipes[id].overlap, &dwBytesTransferred, TRUE)) {
-
-                if (dwBytesTransferred > 0 && receive.key != 0) {
-                    _tprintf(L"(%d Recebida) pelo frog (%d)\n", receive.key, id);
-
-                }
-
+            if (receive.key == 1) {
+                _tprintf(L"[FROG %d] pressionou a tecla ESC\n", id + 1, receive.key);
             }
+            else if (receive.key == 2) {
+                _tprintf(L"[FROG %d] pressionou a tecla UP\n", id + 1, receive.key);
+            }
+            else if (receive.key == 3) {
+                _tprintf(L"[FROG %d] pressionou a tecla LEFT\n", id + 1, receive.key);
+            }
+            else if (receive.key == 4) {
+                _tprintf(L"[FROG %d] pressionou a tecla RIGHT\n", id + 1, receive.key);
+            }
+
         }
     }
+
+    ExitThread(3);
 
 }
 

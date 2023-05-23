@@ -75,19 +75,23 @@ DWORD WINAPI input_thread(HANDLE p) {
 
     api send;
     char key;
+    TCHAR buf[256];
 
     while (1) {
 
+        key = 0;
         key = getch();
 
-        if (key == 27) {
-            send.key = 1;
+        if (key == 27) {/*esc pressionado*/ key = 1; }
+        if (key == 72) {/*SETA CIMA pressionado*/ key = 2; }
+        if (key == 75) {/*SETA ESQUERDA pressionado*/ key = 3; }
+        if (key == 77) {/*SETA DIREITA pressionado*/ key = 4; }
 
+        if (key == 1 || key == 2 || key == 3 || key == 4) {
+            send.key = key;
             WriteFileEx(p, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
-
-            _tprintf(L"Write\n");
-
         }
+      
 
     }
 
