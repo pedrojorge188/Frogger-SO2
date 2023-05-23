@@ -301,7 +301,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     //Filling game defaults
 
-    game gameData = FillRegistryValues();
+    game gameData = FillRegistryValues(argv);
     FillGameDefaults(&gameData);
 
     //filling threads structures
@@ -490,7 +490,7 @@ int ChangeSpeed(INT value) {
 
 }
 
-game FillRegistryValues() {
+game FillRegistryValues(TCHAR* valsarg[]) {
 
     game gameData;
     HKEY key, KeySuccess;
@@ -516,12 +516,19 @@ game FillRegistryValues() {
     }
     else {
 
-        do {
+        /*do {
             _tprintf(COUT_TRACKS);
             _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
             gameData.num_tracks = (INT)dwValue;
 
-        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);
+        } while (gameData.num_tracks > (INT)GAME_MAX_TRACKS || gameData.num_tracks < (INT)1);*/
+
+        if (valsarg[1] == NULL || atoi(valsarg[1]) <= 0)
+            dwValue = NTRACKS_DEFAULT;
+        else
+            dwValue = atoi(valsarg[1]);
+
+        gameData.num_tracks = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, N_TRACKS, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
 
@@ -553,8 +560,14 @@ game FillRegistryValues() {
     }
     else {
 
-        _tprintf(COUT_SPEED);
-        _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));
+        /*_tprintf(COUT_SPEED);
+        _tscanf_s(_T("%u"), &dwValue, sizeof(dwValue));*/
+
+        if (valsarg[1] == NULL || valsarg[2] == NULL || atoi(valsarg[2]) <= 0)
+            dwValue = VEL_DEFAULT;
+        else
+            dwValue = atoi(valsarg[2]);
+
         gameData.vehicle_speed = (INT)dwValue;
 
         if (RegCreateKeyEx(HKEY_CURRENT_USER, START_SPEED, 0, NULL, REG_OPTION_VOLATILE, KEY_WRITE, NULL, &key, NULL) == ERROR_SUCCESS) {
