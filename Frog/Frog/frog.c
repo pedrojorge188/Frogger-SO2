@@ -1,147 +1,219 @@
 #include <windows.h>
 #include <tchar.h>
-#include <io.h>
-#include <fcntl.h>
-#include <stdio.h>
+#include <windowsx.h>
 #include "frog.h"
 
-OVERLAPPED overlapped ;
+LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
+
+
+TCHAR szProgName[] = TEXT("Base");
+thParams args;
+OVERLAPPED overlapped;
 
 void ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {}
 
 void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {}
 
-DWORD WINAPI receive_thread(HANDLE p) {
+DWORD WINAPI receive_thread(thParams p) {
 
-    api receive;
-    DWORD bytesAvailable = 0;
+	DWORD bytesAvailable = 0;
+	api receive;
 
-    while (1) {
-
-
-        BOOL pipeHasData = PeekNamedPipe(p, NULL, 0, NULL, &bytesAvailable, NULL);
-
-        if (pipeHasData && bytesAvailable > 0) {
-
-            if (ReadFileEx(p, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine))
-            {
-
-                if (receive.msg == -1) {
-                    _tprintf(L"[SERVER] Game already running in another mode of game!");
-                    Sleep(5000);
-                    ExitThread(1);
-                }
-
-                COORD position = { 5 , 2 };
-                HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-                DWORD written;
-
-                for (int i = H_GAME - 1; i >= -1; i--) {
-                    for (int j = W_GAME - 1; j >= 0; j--) {
+	while (1) {
 
 
-                        wchar_t c = receive.table[i][j];
+		BOOL pipeHasData = PeekNamedPipe(p.pipe, NULL, 0, NULL, &bytesAvailable, NULL);
 
-                        if (i == receive.num_tracks + 1 || i == receive.num_tracks + 2)
+		if (pipeHasData && bytesAvailable > 0) {
 
-                            c = L'_';
+			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine))
+			{
+				EnterCriticalSection(&p.critical);
 
-                        else if (i == 0 && receive.table[i][j] != L'S' || i == -1)
+					args.gameView.num_tracks = receive.num_tracks;
 
-                            c = L'_';
+					for (int i = H_GAME - 1; i >= -1; i--) {
+						for (int j = W_GAME - 1; j >= 0; j--) {
+							args.gameView.table[i][j] = receive.table[i][j];
+						}
+					}
 
-                        if ((j == 0 || j == W_GAME - 1) && i < receive.num_tracks + 2)
+					InvalidateRect(p.mainWindow, NULL, TRUE);
 
-                            c = L'|';
+				LeaveCriticalSection(&p.critical);
+			}
+		}
+	}
 
-                        WriteConsoleOutputCharacterW(console, &c, 1, position, &written);
-                        position.X++;
-
-                    }
-                    position.Y++;
-                    position.X = 5;
-                }
-
-
-            }
-        }
-    }
-
-    ExitThread(1);
-
+	ExitThread(1);
 }
 
-DWORD WINAPI input_thread(HANDLE p) {
 
-    api send;
-    char key;
-    TCHAR buf[256];
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 
-    int out_flag = 0;
+	HWND hWnd;
+	MSG lpMsg;
+	WNDCLASSEX wcApp;
+	api initialize_game;
+	HANDLE hThreads[1];
+	InitializeCriticalSection(&args.critical);
 
-    while (out_flag == 0) {
+	wcApp.cbSize = sizeof(WNDCLASSEX);
+	wcApp.hInstance = hInst;
 
-        key = 0;
-        key = getch();
+	wcApp.lpszClassName = szProgName;
+	wcApp.lpfnWndProc = TrataEventos;
 
-        if (key == 27) {/*esc pressionado*/ key = 1; out_flag = 1; }
-        if (key == 72) {/*SETA CIMA pressionado*/ key = 2; }
-        if (key == 75) {/*SETA ESQUERDA pressionado*/ key = 3; }
-        if (key == 77) {/*SETA DIREITA pressionado*/ key = 4; }
+	wcApp.style = CS_HREDRAW | CS_VREDRAW;
+
+	wcApp.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+
+	wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD);
+
+	wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);
+
+	wcApp.lpszMenuName = NULL;
+
+	wcApp.cbClsExtra = 0;
+	wcApp.cbWndExtra = 0;
+	wcApp.hbrBackground = CreateSolidBrush(RGB(27, 40, 138));
+
+	if (!RegisterClassEx(&wcApp))
+		return(0);
 
 
-        if (key == 1 || key == 2 || key == 3 || key == 4) {
-            send.key = key;
-            WriteFileEx(p, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
-        }
-      
+	hWnd = CreateWindow(
+		szProgName,
+		TEXT("Frooger-Game"),
+		WS_OVERLAPPEDWINDOW,	// Estilo da janela (WS_OVERLAPPED= normal)
+		CW_USEDEFAULT,		// Posição x pixels (default=à direita da última)
+		CW_USEDEFAULT,		// Posição y pixels (default=abaixo da última)
+		CW_USEDEFAULT,		// Largura da janela (em pixels)
+		CW_USEDEFAULT,		// Altura da janela (em pixels)
+		(HWND)HWND_DESKTOP,	// handle da janela pai (se se criar uma a partir de
+		// outra) ou HWND_DESKTOP se a janela for a primeira, 
+		// criada a partir do "desktop"
+		(HMENU)NULL,			// handle do menu da janela (se tiver menu)
+		(HINSTANCE)hInst,		// handle da instância do programa actual ("hInst" é 
+		// passado num dos parâmetros de WinMain()
+		0);				// Não há parâmetros adicionais para a janela
 
-    }
+	ShowWindow(hWnd, nCmdShow);
 
-    ExitThread(2);
+	UpdateWindow(hWnd);
 
-}
-
-int _tmain(int argc, TCHAR* argv[]) {
-
-    UNICODE_INITIALIZER();
-    api initialize_game;
-    initialize_game.msg = 2;
-
-    HANDLE hThreads[2];
-
-    if (!WaitNamedPipe(PIPE_NAME, 10000)) {
-        _tprintf(L"Server is not running!\n");
-        exit(-1);
-    }
+	if (!WaitNamedPipe(PIPE_NAME, 10000)) {
+		if (MessageBox(hWnd, L"Server not Running", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
+			exit(-1);
+		}
+	}
 
 	HANDLE hPipe = CreateFile(PIPE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
-    WriteFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
+	args.mainWindow = hWnd;
+	args.pipe = hPipe;
+	args.status = 4;
 
-    ZeroMemory(&overlapped, sizeof(overlapped));
 
-    overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	int result = MessageBox(hWnd, L"Do you want to play Multyplayer?", L"Game Mode Selection", MB_YESNO | MB_ICONQUESTION);
+
+	if (result == IDYES) {
+		initialize_game.msg = 2;
+	}
+	else if(result = IDNO) {
+		initialize_game.msg = 1;
+	}
+
+	WriteFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
+
+	ZeroMemory(&overlapped, sizeof(overlapped));
+
+	overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	if (hPipe == NULL) {
 		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), PIPE_NAME);
 		exit(-1);
 	}
 
-	_tprintf(TEXT("[FROG] Connection made...\n"));
+	hThreads[0] = CreateThread(NULL, 0, receive_thread, &args, 0, 0);
 
-    hThreads[0] = CreateThread(NULL, 0, input_thread, hPipe, 0, 0);
-    hThreads[1] = CreateThread(NULL, 0, receive_thread, hPipe, 0, 0);
+	while (GetMessage(&lpMsg, NULL, 0, 0)) {
 
-    WaitForMultipleObjects(2, hThreads, FALSE, INFINITE);
+		TranslateMessage(&lpMsg);
+		DispatchMessage(&lpMsg);
 
-    return 0;
+	}
+
+
+	return((int)lpMsg.wParam);
 }
 
-void UNICODE_INITIALIZER() {
-#ifdef UNICODE
-    _setmode(_fileno(stdin), _O_WTEXT);
-    _setmode(_fileno(stdout), _O_WTEXT);
-    _setmode(_fileno(stderr), _O_WTEXT);
-#endif
+
+LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
+
+	HDC hdc;
+	PAINTSTRUCT ps;
+	RECT rect;
+	api send;
+
+	switch (messg) {
+	case WM_CLOSE:
+
+		if (MessageBox(hWnd, L"DO YOU WANT TO QUIT?", L"Confirmation", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+			send.key = 1;
+			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+			DestroyWindow(hWnd);
+			ExitProcess(-1);
+		}
+		break;
+
+	case WM_DESTROY:
+
+		PostQuitMessage(0);
+		break;
+
+	case WM_LBUTTONDOWN:
+
+		InvalidateRect(hWnd, NULL, TRUE);
+		break;
+
+	case WM_KEYDOWN:
+	
+		switch (wParam)
+		{
+			case VK_LEFT:
+				send.key = 3;
+				WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+				break;
+			case VK_RIGHT:
+				send.key = 4;
+				WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+				break;
+			case VK_UP:
+				send.key = 2;
+				WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+				break;
+		}
+	break;
+
+	case WM_PAINT:
+
+		hdc = BeginPaint(hWnd, &ps);
+		GetClientRect(hWnd, &rect);
+		SetTextColor(hdc, RGB(255, 255, 255));
+		
+		EnterCriticalSection(&args.critical);
+
+			
+
+		LeaveCriticalSection(&args.critical);
+
+		break;
+
+	default:
+
+		return(DefWindowProc(hWnd, messg, wParam, lParam));
+		break; 
+	}
+	return(0);
 }

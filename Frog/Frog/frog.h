@@ -21,6 +21,14 @@
 
 #define MAX_FROGS 2
 
+typedef struct thParams {
+	CRITICAL_SECTION critical;
+	HANDLE pipe;
+	HWND mainWindow;
+	int status;
+	game gameView;
+}thParams;
+
 int out_flag = 0;
 void UNICODE_INITIALIZER();
 
