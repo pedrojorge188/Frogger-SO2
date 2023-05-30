@@ -61,6 +61,7 @@ typedef struct game {
 
 typedef struct api {
 	int msg;
+	int points;
 	int key;
 	int num_tracks;			// Numero de estradas
 	wchar_t table[H_GAME][W_GAME]; // Tabela de vizualização

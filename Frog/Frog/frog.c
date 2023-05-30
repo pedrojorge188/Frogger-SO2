@@ -18,7 +18,7 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	DWORD bytesAvailable = 0;
 	api receive;
-
+	
 	while (1) {
 
 
@@ -31,6 +31,7 @@ DWORD WINAPI receive_thread(thParams p) {
 				EnterCriticalSection(&p.critical);
 
 					args.gameView.num_tracks = receive.num_tracks;
+					args.myPoints = receive.points;
 
 					for (int i = H_GAME - 1; i >= -1; i--) {
 						for (int j = W_GAME - 1; j >= 0; j--) {
@@ -156,6 +157,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	RECT rect;
 	api send;
 
+
 	switch (messg) {
 	case WM_CLOSE:
 
@@ -172,13 +174,10 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 		break;
 
-	case WM_LBUTTONDOWN:
-
-		InvalidateRect(hWnd, NULL, TRUE);
-		break;
-
 	case WM_KEYDOWN:
-	
+		
+		InvalidateRect(hWnd, NULL, TRUE);
+
 		switch (wParam)
 		{
 			case VK_LEFT:
@@ -199,14 +198,75 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_PAINT:
 
 		hdc = BeginPaint(hWnd, &ps);
-		GetClientRect(hWnd, &rect);
-		SetTextColor(hdc, RGB(255, 255, 255));
-		
-		EnterCriticalSection(&args.critical);
+		RECT boxRect;
 
-			
+			GetClientRect(hWnd, &rect);
+			HDC hdc = GetDC(hWnd);
 
-		LeaveCriticalSection(&args.critical);
+			EnterCriticalSection(&args.critical);
+				
+
+				int width = 50; // Largura do retângulo
+				int x = 100; // Coordenada x do canto superior esquerdo do retângulo
+				int height = 50; // Altura do retângulo
+				int y = GetSystemMetrics(SM_CYSCREEN) / 6; // Coordenada x do canto superior esquerdo do retângulo
+
+
+				for (int i = H_GAME - 1; i >= 0; i--) {
+					for (int j = W_GAME - 1; j >= 0; j--) {
+
+						wchar_t c = args.gameView.table[i][j];
+
+						if (i == args.gameView.num_tracks + 1 || i == args.gameView.num_tracks + 2)
+							c = L'_';
+						else if (i == 0 && args.gameView.table[i][j] != L'S' || i == -1)
+							c = L'_';
+
+						if ((j == 0 || j == W_GAME - 1) && i < args.gameView.num_tracks + 2)
+							c = L'_';
+
+						if (c == L'S' || c == L'<' || c == L'>' || c == L'_' || c == L'|') {
+
+							rect.left = x + (W_GAME - 1 - j) * (width) + 10;
+							rect.top = y + (H_GAME - 1 - i) * (height) + 10;
+							rect.right = rect.left + width - 2 + 10;
+							rect.bottom = rect.top + height - 2 + 10;
+
+
+							if (c == L'S') {
+								SetTextColor(hdc, RGB(255, 0, 255));
+								SetBkColor(hdc, RGB(27, 40, 138));
+							}
+							else if (c == L'_' || c == L'_') {
+
+								SetTextColor(hdc, RGB(255, 255, 255));
+								SetBkColor(hdc, RGB(27, 40, 138));
+							}
+							else {
+								SetTextColor(hdc, RGB(255, 255, 255));
+								SetBkColor(hdc, RGB(27, 40, 138));
+							}
+
+							DrawTextW(hdc, &c, 1, &rect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+						}
+					}
+				}
+
+				SetTextColor(hdc, RGB(255, 255, 255));
+				SetBkColor(hdc, RGB(27, 40, 138));
+
+				wchar_t resultString[100];
+				swprintf_s(resultString, sizeof(resultString) / sizeof(resultString[0]), L"POINTS : %d", args.myPoints);
+				rect.left = 10;
+				rect.top = 10;
+				DrawTextW(hdc, resultString, -1, &rect, DT_SINGLELINE | DT_NOCLIP);
+
+				
+
+			LeaveCriticalSection(&args.critical);
+
+		ReleaseDC(hWnd, hdc); // Libere o contexto de dispositivo da janela
+
 
 		break;
 

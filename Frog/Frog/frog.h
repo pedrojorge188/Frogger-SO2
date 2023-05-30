@@ -6,7 +6,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include "..\\..\\utils.h"
+#include "..//..//utils.h";
 
 #define TAM 40
 
@@ -27,7 +27,9 @@ typedef struct thParams {
 	HWND mainWindow;
 	int status;
 	game gameView;
+	int myPoints;
 }thParams;
+
 
 int out_flag = 0;
 void UNICODE_INITIALIZER();
