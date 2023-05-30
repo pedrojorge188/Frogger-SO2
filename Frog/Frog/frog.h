@@ -6,7 +6,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include "..//..//utils.h";
+#include "..\\..\\utils.h";
 
 #define TAM 40
 
@@ -28,10 +28,12 @@ typedef struct thParams {
 	int status;
 	game gameView;
 	int myPoints;
+	HANDLE receiver;
 }thParams;
 
 
 int out_flag = 0;
+void paint_game_zone(HDC hdc, RECT rect);
 void UNICODE_INITIALIZER();
 
 #endif

@@ -18,7 +18,7 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	DWORD bytesAvailable = 0;
 	api receive;
-	
+
 	while (1) {
 
 
@@ -30,16 +30,16 @@ DWORD WINAPI receive_thread(thParams p) {
 			{
 				EnterCriticalSection(&p.critical);
 
-					args.gameView.num_tracks = receive.num_tracks;
-					args.myPoints = receive.points;
+				args.gameView.num_tracks = receive.num_tracks;
+				args.myPoints = receive.points;
 
-					for (int i = H_GAME - 1; i >= -1; i--) {
-						for (int j = W_GAME - 1; j >= 0; j--) {
-							args.gameView.table[i][j] = receive.table[i][j];
-						}
+				for (int i = H_GAME - 1; i >= -1; i--) {
+					for (int j = W_GAME - 1; j >= 0; j--) {
+						args.gameView.table[i][j] = receive.table[i][j];
 					}
+				}
 
-					InvalidateRect(p.mainWindow, NULL, TRUE);
+				InvalidateRect(p.mainWindow, NULL, TRUE);
 
 				LeaveCriticalSection(&p.critical);
 			}
@@ -89,8 +89,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		WS_OVERLAPPEDWINDOW,	// Estilo da janela (WS_OVERLAPPED= normal)
 		CW_USEDEFAULT,		// Posição x pixels (default=à direita da última)
 		CW_USEDEFAULT,		// Posição y pixels (default=abaixo da última)
-		CW_USEDEFAULT,		// Largura da janela (em pixels)
-		CW_USEDEFAULT,		// Altura da janela (em pixels)
+		1280,		// Largura da janela (em pixels)
+		720,		// Altura da janela (em pixels)
 		(HWND)HWND_DESKTOP,	// handle da janela pai (se se criar uma a partir de
 		// outra) ou HWND_DESKTOP se a janela for a primeira, 
 		// criada a partir do "desktop"
@@ -121,7 +121,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	if (result == IDYES) {
 		initialize_game.msg = 2;
 	}
-	else if(result = IDNO) {
+	else if (result = IDNO) {
 		initialize_game.msg = 1;
 	}
 
@@ -137,6 +137,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	}
 
 	hThreads[0] = CreateThread(NULL, 0, receive_thread, &args, 0, 0);
+	args.receiver = hThreads[0];
 
 	while (GetMessage(&lpMsg, NULL, 0, 0)) {
 
@@ -145,20 +146,19 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	}
 
-
 	return((int)lpMsg.wParam);
 }
 
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
 
-	HDC hdc;
+
+	HDC hdc = NULL;RECT rect;
 	PAINTSTRUCT ps;
-	RECT rect;
 	api send;
 
-
 	switch (messg) {
+
 	case WM_CLOSE:
 
 		if (MessageBox(hWnd, L"DO YOU WANT TO QUIT?", L"Confirmation", MB_YESNO | MB_ICONQUESTION) == IDYES) {
@@ -174,98 +174,54 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 		break;
 
+	
 	case WM_KEYDOWN:
-		
+
 		InvalidateRect(hWnd, NULL, TRUE);
 
 		switch (wParam)
 		{
-			case VK_LEFT:
-				send.key = 3;
-				WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
-				break;
-			case VK_RIGHT:
-				send.key = 4;
-				WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
-				break;
-			case VK_UP:
-				send.key = 2;
-				WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
-				break;
+		case VK_LEFT:
+			send.key = 3;
+			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+			break;
+		case VK_RIGHT:
+			send.key = 4;
+			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+			break;
+		case VK_UP:
+			send.key = 2;
+			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+			break;
+		case VK_ESCAPE:
+
+			SuspendThread(args.receiver);
+			if (MessageBox(hWnd, L"Game paused!", L"game stopped", MB_OK | MB_ICONASTERISK) == IDOK) {
+				ResumeThread(args.receiver);
+			}
+			break;
 		}
-	break;
+
+
+		break;
 
 	case WM_PAINT:
 
 		hdc = BeginPaint(hWnd, &ps);
-		RECT boxRect;
 
-			GetClientRect(hWnd, &rect);
-			HDC hdc = GetDC(hWnd);
+		GetClientRect(hWnd, &rect);
 
-			EnterCriticalSection(&args.critical);
-				
+		HDC hdc = GetDC(hWnd);
 
-				int width = 50; // Largura do retângulo
-				int x = 100; // Coordenada x do canto superior esquerdo do retângulo
-				int height = 50; // Altura do retângulo
-				int y = GetSystemMetrics(SM_CYSCREEN) / 6; // Coordenada x do canto superior esquerdo do retângulo
+		EnterCriticalSection(&args.critical);
 
+			paint_game_zone(hdc,rect);
 
-				for (int i = H_GAME - 1; i >= 0; i--) {
-					for (int j = W_GAME - 1; j >= 0; j--) {
+		LeaveCriticalSection(&args.critical);
 
-						wchar_t c = args.gameView.table[i][j];
+		ReleaseDC(hWnd, hdc);
 
-						if (i == args.gameView.num_tracks + 1 || i == args.gameView.num_tracks + 2)
-							c = L'_';
-						else if (i == 0 && args.gameView.table[i][j] != L'S' || i == -1)
-							c = L'_';
-
-						if ((j == 0 || j == W_GAME - 1) && i < args.gameView.num_tracks + 2)
-							c = L'_';
-
-						if (c == L'S' || c == L'<' || c == L'>' || c == L'_' || c == L'|') {
-
-							rect.left = x + (W_GAME - 1 - j) * (width) + 10;
-							rect.top = y + (H_GAME - 1 - i) * (height) + 10;
-							rect.right = rect.left + width - 2 + 10;
-							rect.bottom = rect.top + height - 2 + 10;
-
-
-							if (c == L'S') {
-								SetTextColor(hdc, RGB(255, 0, 255));
-								SetBkColor(hdc, RGB(27, 40, 138));
-							}
-							else if (c == L'_' || c == L'_') {
-
-								SetTextColor(hdc, RGB(255, 255, 255));
-								SetBkColor(hdc, RGB(27, 40, 138));
-							}
-							else {
-								SetTextColor(hdc, RGB(255, 255, 255));
-								SetBkColor(hdc, RGB(27, 40, 138));
-							}
-
-							DrawTextW(hdc, &c, 1, &rect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
-						}
-					}
-				}
-
-				SetTextColor(hdc, RGB(255, 255, 255));
-				SetBkColor(hdc, RGB(27, 40, 138));
-
-				wchar_t resultString[100];
-				swprintf_s(resultString, sizeof(resultString) / sizeof(resultString[0]), L"POINTS : %d", args.myPoints);
-				rect.left = 10;
-				rect.top = 10;
-				DrawTextW(hdc, resultString, -1, &rect, DT_SINGLELINE | DT_NOCLIP);
-
-				
-
-			LeaveCriticalSection(&args.critical);
-
-		ReleaseDC(hWnd, hdc); // Libere o contexto de dispositivo da janela
+		EndPaint(hWnd, &ps);
 
 
 		break;
@@ -273,7 +229,55 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	default:
 
 		return(DefWindowProc(hWnd, messg, wParam, lParam));
-		break; 
+		break;
 	}
+
 	return(0);
+}
+
+void paint_game_zone(HDC hdc, RECT rect) {
+
+
+	int width = 50;
+	int x = 100;
+	int height = 50;
+	int y = 80;
+
+	// Desenhe o conteúdo no buffer off-screen
+	for (int i = H_GAME - 1; i >= 0; i--) {
+		for (int j = W_GAME - 1; j >= 0; j--) {
+			wchar_t c = args.gameView.table[i][j];
+
+			if (i == args.gameView.num_tracks + 1 || i == args.gameView.num_tracks + 2)
+				c = L'_';
+			else if (i == 0 && args.gameView.table[i][j] != L'S' || i == -1)
+				c = L'_';
+
+			if ((j == 0 || j == W_GAME - 1) && i < args.gameView.num_tracks + 2)
+				c = L'|';
+
+			if (c == L'S' || c == L'<' || c == L'>' || L'|' || L'_') {
+
+				RECT cellRect;
+				cellRect.left = x + (W_GAME - 1 - j) * width;
+				cellRect.top = y + (H_GAME - 1 - i) * height;
+				cellRect.right = cellRect.left + width;
+				cellRect.bottom = cellRect.top + height;
+
+				if (c == L'S') {
+					SetTextColor(hdc, RGB(255, 0, 255));
+					SetBkColor(hdc, RGB(27, 40, 138));
+				}
+				else {
+					SetTextColor(hdc, RGB(255, 255, 255));
+					SetBkColor(hdc, RGB(27, 40, 138));
+				}
+
+				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+			}
+			
+		}
+	}
+
+
 }

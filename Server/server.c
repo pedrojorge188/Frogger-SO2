@@ -43,19 +43,18 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
 
                 if (receive.key == 1) {
 
-                    FlushFileBuffers(p->hPipes[id].hPipe);
+                    _tprintf(L"[FROG %d] Disconnected!\n", id + 1, receive.key);
 
-                    p->frogs_connected -= 1;
-
-                    p->hPipes[id].active = FALSE;
 
                     removeFrog(p->gameData, id);
                     WritePipe(p->hPipes, p->gameData);
                     copyGame(p->gameData);
+                    
+                    //p->frogs_connected -= 1;
+                    //p->hPipes[id].active = FALSE;
 
-                    DisconnectNamedPipe(p->hPipes[id].hPipe);
-
-                    _tprintf(L"[FROG %d] Disconnected!\n", id + 1, receive.key);
+                    ExitThread(1);
+                  
                 }
                 else if (receive.key == 2) {
 
@@ -406,7 +405,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
                 ReadFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
 
-                structTh.frogs_connected += 1;
 
                 _tprintf(L"[FROG] (%d) connected!\n", index + 1);
 
@@ -422,7 +420,7 @@ int _tmain(int argc, TCHAR* argv[]) {
                     }
                 }
 
-                else if (structTh.gameData->mode == 2 && structTh.frogs_connected > 1) {
+                else if (structTh.gameData->mode == 2 && structTh.frogs_connected + 1 > 1) {
                     for (int i = 0; i < gameData.num_tracks; i++) {
                         ResumeThread(hMovementCars[i]);
                     }
@@ -434,6 +432,8 @@ int _tmain(int argc, TCHAR* argv[]) {
                     structMove[i].hPipes[index] = structTh.hPipes[index];
                     structMove[i].frogs_connected += 1;
                 }
+
+                structTh.frogs_connected += 1;
 
                 CreateThread(NULL, 0, cliente_manager, &structTh, 0, NULL);
 
@@ -569,6 +569,8 @@ void WritePipe(PipeData  * p, game * g) {
             for (int i = 0; i < H_GAME; i++) {
                 for (int j = 0; j < W_GAME; j++) {
 
+                    
+                    send.points = g->frogs[i].points;
                     send.table[i][j] = g->table[i][j];
                     send.num_tracks = g->num_tracks;
 
