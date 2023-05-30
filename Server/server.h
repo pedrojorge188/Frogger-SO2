@@ -58,6 +58,7 @@ typedef struct thParams {
 
 }thParams;
 
+void removeFrog(game* g , int id);
 void WritePipe(PipeData* p, game* g);
 void moveUp(game* g, int id);
 void moveRight(game* g, int id);

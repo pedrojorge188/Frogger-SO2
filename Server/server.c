@@ -28,7 +28,7 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
     COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
     HANDLE evt = p->updateEvent;
-
+    HANDLE evt1 = p->hPipes[id].overlap.hEvent;
 
     while (out_flag == 0) {
 
@@ -40,8 +40,22 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
             ret = ReadFileEx(p->hPipes[id].hPipe, &receive, sizeof(receive), &p->hPipes[id].overlap, &ReadCompletionRoutine);
 
             InitializeCriticalSection(&p->critical);
+
                 if (receive.key == 1) {
-                    _tprintf(L"[FROG %d] pressionou a tecla ESC\n", id + 1, receive.key);
+
+                    FlushFileBuffers(p->hPipes[id].hPipe);
+
+                    p->frogs_connected -= 1;
+
+                    p->hPipes[id].active = FALSE;
+
+                    removeFrog(p->gameData, id);
+                    WritePipe(p->hPipes, p->gameData);
+                    copyGame(p->gameData);
+
+                    DisconnectNamedPipe(p->hPipes[id].hPipe);
+
+                    _tprintf(L"[FROG %d] Disconnected!\n", id + 1, receive.key);
                 }
                 else if (receive.key == 2) {
 
@@ -88,7 +102,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
 
         EnterCriticalSection(&p->critical);
 
-            Sleep(p->gameData->track_speed[p->track] * 200);
+            Sleep(p->gameData->track_speed[p->track] * 300);
 
             moveCars(p);
 
@@ -374,11 +388,12 @@ int _tmain(int argc, TCHAR* argv[]) {
         structMove[i].hPipes[1] = structTh.hPipes[1];
         structMove[i].overlapEvents[0] = structTh.overlapEvents[0];
         structMove[i].overlapEvents[1] = structTh.overlapEvents[1];
-        hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], 0, NULL);
+        hMovementCars[i] = CreateThread(NULL, 0, move_cars, &structMove[i], CREATE_SUSPENDED, NULL);
     }
 
     DWORD offset, nBytes;
     int index = 0;
+    api start_info;
 
     while (out_flag == 0) {
 
@@ -389,11 +404,29 @@ int _tmain(int argc, TCHAR* argv[]) {
 
             if (GetOverlappedResult(structTh.hPipes[index].hPipe, &structTh.hPipes[index].overlap, &nBytes, FALSE)) {
 
+                ReadFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
+
+                structTh.frogs_connected += 1;
+
                 _tprintf(L"[FROG] (%d) connected!\n", index + 1);
 
                 ResetEvent(structTh.overlapEvents[index]);
 
                 EnterCriticalSection(&structTh.critical);
+
+                structTh.gameData->mode = start_info.msg;
+                
+                if (structTh.gameData->mode == 1) {
+                    for (int i = 0; i < gameData.num_tracks; i++) {
+                        ResumeThread(hMovementCars[i]);
+                    }
+                }
+
+                else if (structTh.gameData->mode == 2 && structTh.frogs_connected > 1) {
+                    for (int i = 0; i < gameData.num_tracks; i++) {
+                        ResumeThread(hMovementCars[i]);
+                    }
+                }
 
                 structTh.hPipes[index].active = TRUE;
 
@@ -408,7 +441,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 
                 LeaveCriticalSection(&structTh.critical);
 
-                structTh.frogs_connected += 1;
+                
             }
 
         }
@@ -440,6 +473,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 
 
     return 0;
+}
+
+void removeFrog(game * g, int id) {
+
+    g->table[g->frogs[id].x][g->frogs[id].y] = ' ';
+
 }
 
 void moveUp(game* g, int id) {
@@ -630,9 +669,9 @@ void moveCars(moveParam* p) {
     }
 
     //atencao
-    for (int i = 0; i < p->frogs_connected; i++) {
-
-        p->gameData->table[p->gameData->frogs[i].x][p->gameData->frogs[i].y] = 'S';
+    for (int i = 0; i < 2; i++) {
+        if(p->hPipes[i].active)
+             p->gameData->table[p->gameData->frogs[i].x][p->gameData->frogs[i].y] = 'S';
 
     }
 

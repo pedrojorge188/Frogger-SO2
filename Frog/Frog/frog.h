@@ -21,7 +21,7 @@
 
 #define MAX_FROGS 2
 
-
+int out_flag = 0;
 void UNICODE_INITIALIZER();
 
 #endif

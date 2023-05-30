@@ -77,15 +77,18 @@ DWORD WINAPI input_thread(HANDLE p) {
     char key;
     TCHAR buf[256];
 
-    while (1) {
+    int out_flag = 0;
+
+    while (out_flag == 0) {
 
         key = 0;
         key = getch();
 
-        if (key == 27) {/*esc pressionado*/ key = 1; }
+        if (key == 27) {/*esc pressionado*/ key = 1; out_flag = 1; }
         if (key == 72) {/*SETA CIMA pressionado*/ key = 2; }
         if (key == 75) {/*SETA ESQUERDA pressionado*/ key = 3; }
         if (key == 77) {/*SETA DIREITA pressionado*/ key = 4; }
+
 
         if (key == 1 || key == 2 || key == 3 || key == 4) {
             send.key = key;
@@ -95,23 +98,26 @@ DWORD WINAPI input_thread(HANDLE p) {
 
     }
 
-    ExitThread(1);
+    ExitThread(2);
 
 }
 
 int _tmain(int argc, TCHAR* argv[]) {
 
     UNICODE_INITIALIZER();
-
+    api initialize_game;
+    initialize_game.msg = 2;
 
     HANDLE hThreads[2];
 
-    if (!WaitNamedPipe(PIPE_NAME, NMPWAIT_WAIT_FOREVER)) {
+    if (!WaitNamedPipe(PIPE_NAME, 10000)) {
         _tprintf(L"Server is not running!\n");
         exit(-1);
     }
 
 	HANDLE hPipe = CreateFile(PIPE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+
+    WriteFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
 
     ZeroMemory(&overlapped, sizeof(overlapped));
 
@@ -127,7 +133,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     hThreads[0] = CreateThread(NULL, 0, input_thread, hPipe, 0, 0);
     hThreads[1] = CreateThread(NULL, 0, receive_thread, hPipe, 0, 0);
 
-    WaitForMultipleObjects(2, hThreads, TRUE, INFINITE);
+    WaitForMultipleObjects(2, hThreads, FALSE, INFINITE);
 
     return 0;
 }
