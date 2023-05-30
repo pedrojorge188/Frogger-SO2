@@ -153,7 +153,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
 
 
-	HDC hdc = NULL;RECT rect;
+	HDC hdc = NULL; RECT rect;
 	PAINTSTRUCT ps;
 	api send;
 
@@ -174,10 +174,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 		break;
 
-	
-	case WM_KEYDOWN:
 
-		InvalidateRect(hWnd, NULL, TRUE);
+	case WM_KEYDOWN:
 
 		switch (wParam)
 		{
@@ -215,7 +213,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		EnterCriticalSection(&args.critical);
 
-			paint_game_zone(hdc,rect);
+		paint_game_zone(hdc, rect);
 
 		LeaveCriticalSection(&args.critical);
 
@@ -237,6 +235,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 void paint_game_zone(HDC hdc, RECT rect) {
 
+	static int counter= 0;
 
 	int width = 50;
 	int x = 100;
@@ -248,36 +247,60 @@ void paint_game_zone(HDC hdc, RECT rect) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
 			wchar_t c = args.gameView.table[i][j];
 
-			if (i == args.gameView.num_tracks + 1 || i == args.gameView.num_tracks + 2)
+			if (i == args.gameView.num_tracks + 1) {
 				c = L'_';
-			else if (i == 0 && args.gameView.table[i][j] != L'S' || i == -1)
-				c = L'_';
-
-			if ((j == 0 || j == W_GAME - 1) && i < args.gameView.num_tracks + 2)
-				c = L'|';
-
-			if (c == L'S' || c == L'<' || c == L'>' || L'|' || L'_') {
-
-				RECT cellRect;
-				cellRect.left = x + (W_GAME - 1 - j) * width;
-				cellRect.top = y + (H_GAME - 1 - i) * height;
-				cellRect.right = cellRect.left + width;
-				cellRect.bottom = cellRect.top + height;
-
-				if (c == L'S') {
-					SetTextColor(hdc, RGB(255, 0, 255));
-					SetBkColor(hdc, RGB(27, 40, 138));
-				}
-				else {
-					SetTextColor(hdc, RGB(255, 255, 255));
-					SetBkColor(hdc, RGB(27, 40, 138));
-				}
-
-				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
 			
+			if (i == 0 && args.gameView.table[i][j] != L'S') {
+				c = L'_';
+			}
+
+			if ((j == 0 || j == W_GAME - 1) && i < args.gameView.num_tracks + 2) {
+				c = L'|';
+			}
+
+			
+			RECT cellRect;
+			cellRect.left = x + (W_GAME - 1 - j) * width;
+			cellRect.top = y + (H_GAME - 1 - i) * height;
+			cellRect.right = cellRect.left + width;
+			cellRect.bottom = cellRect.top + height;
+
+			if (c == L'S') {
+				if (i == 0) {
+					FillRect(hdc, &cellRect, CreateSolidBrush(RGB(0, 0, 0)));
+					SetTextColor(hdc, RGB(255, 255, 0));
+					SetBkColor(hdc, RGB(0, 0, 0));
+				}
+				else {
+					SetTextColor(hdc, RGB(255, 255, 0));
+					SetBkColor(hdc, RGB(27, 40, 138));
+				}
+				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+			}
+			else if(c == L'|' || c == L'_') {
+
+				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(0, 0, 0)));
+				SetTextColor(hdc, RGB(0, 0, 0));
+				SetBkColor(hdc, RGB(0, 0, 0));
+				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+	
+			}
+			else if (c == L'<' || c == L'>') {
+				SetTextColor(hdc, RGB(255, 0, 0));
+				SetBkColor(hdc, RGB(27, 40, 138));
+				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+		
+			}
+			else if (c == L'O') {
+				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(0, 0, 0)));
+				SetTextColor(hdc, RGB(0, 0, 0));
+				SetBkColor(hdc, RGB(0, 0, 0));
+				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+			}
+
+
 		}
 	}
-
 
 }
