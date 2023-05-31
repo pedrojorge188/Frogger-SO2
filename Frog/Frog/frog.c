@@ -21,10 +21,11 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	while (1) {
 
-
 		BOOL pipeHasData = PeekNamedPipe(p.pipe, NULL, 0, NULL, &bytesAvailable, NULL);
 
 		if (pipeHasData && bytesAvailable > 0) {
+
+			args.status = 1;
 
 			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine))
 			{
@@ -57,6 +58,15 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	WNDCLASSEX wcApp;
 	api initialize_game;
 	HANDLE hThreads[1];
+	wchar_t szExePath[150];
+	GetModuleFileName(NULL, szExePath, 150);
+
+	wchar_t* pLastSlash = wcsrchr(szExePath, L'\\');
+	if (pLastSlash)
+		*(pLastSlash + 1) = L'\0';
+
+	wcscat_s(szExePath, sizeof(szExePath), L"frog.ico");
+
 	InitializeCriticalSection(&args.critical);
 
 	wcApp.cbSize = sizeof(WNDCLASSEX);
@@ -67,9 +77,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	wcApp.style = CS_HREDRAW | CS_VREDRAW;
 
-	wcApp.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wcApp.hIcon = (HICON)LoadImage(NULL, szExePath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
 
-	wcApp.hIconSm = LoadIcon(NULL, IDI_SHIELD);
+	wcApp.hIconSm = (HICON)LoadImage(NULL, szExePath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
 
 	wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);
 
@@ -77,27 +87,35 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	wcApp.cbClsExtra = 0;
 	wcApp.cbWndExtra = 0;
-	wcApp.hbrBackground = CreateSolidBrush(RGB(27, 40, 138));
+	wcApp.hbrBackground = CreateSolidBrush(RGB(70, 69, 69));
 
 	if (!RegisterClassEx(&wcApp))
 		return(0);
 
-
+	
 	hWnd = CreateWindow(
 		szProgName,
 		TEXT("Frooger-Game"),
-		WS_OVERLAPPEDWINDOW,	// Estilo da janela (WS_OVERLAPPED= normal)
-		CW_USEDEFAULT,		// Posição x pixels (default=à direita da última)
-		CW_USEDEFAULT,		// Posição y pixels (default=abaixo da última)
-		1280,		// Largura da janela (em pixels)
-		720,		// Altura da janela (em pixels)
-		(HWND)HWND_DESKTOP,	// handle da janela pai (se se criar uma a partir de
-		// outra) ou HWND_DESKTOP se a janela for a primeira, 
-		// criada a partir do "desktop"
-		(HMENU)NULL,			// handle do menu da janela (se tiver menu)
-		(HINSTANCE)hInst,		// handle da instância do programa actual ("hInst" é 
-		// passado num dos parâmetros de WinMain()
-		0);				// Não há parâmetros adicionais para a janela
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
+		1280,
+		720,
+		(HWND)HWND_DESKTOP,
+		(HMENU)NULL,
+		(HINSTANCE)hInst,
+		0);
+
+
+	HMENU hMenu = CreateMenu();
+	HMENU hSubMenu = CreatePopupMenu();
+
+	AppendMenu(hSubMenu, MF_STRING, 6, L"&BitMap1");
+	AppendMenu(hSubMenu, MF_STRING, 7, L"&BitMap2");
+
+	AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, L"&Bitmaps");
+
+	SetMenu(hWnd, hMenu);
 
 	ShowWindow(hWnd, nCmdShow);
 
@@ -113,8 +131,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	args.mainWindow = hWnd;
 	args.pipe = hPipe;
-	args.status = 4;
-
+	args.status = 0;
 
 	int result = MessageBox(hWnd, L"Do you want to play Multyplayer?", L"Game Mode Selection", MB_YESNO | MB_ICONQUESTION);
 
@@ -174,7 +191,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 		break;
 
-
 	case WM_KEYDOWN:
 
 		switch (wParam)
@@ -205,6 +221,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 	case WM_PAINT:
 
+
+
 		hdc = BeginPaint(hWnd, &ps);
 
 		GetClientRect(hWnd, &rect);
@@ -212,15 +230,14 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		HDC hdc = GetDC(hWnd);
 
 		EnterCriticalSection(&args.critical);
-
-		paint_game_zone(hdc, rect);
+			
+			paint_game_zone(hdc, rect);
 
 		LeaveCriticalSection(&args.critical);
 
 		ReleaseDC(hWnd, hdc);
 
 		EndPaint(hWnd, &ps);
-
 
 		break;
 
@@ -235,30 +252,15 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 void paint_game_zone(HDC hdc, RECT rect) {
 
-	static int counter= 0;
-
 	int width = 50;
 	int x = 100;
 	int height = 50;
 	int y = 80;
 
-	// Desenhe o conteúdo no buffer off-screen
 	for (int i = H_GAME - 1; i >= 0; i--) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
+
 			wchar_t c = args.gameView.table[i][j];
-
-			if (i == args.gameView.num_tracks + 1) {
-				c = L'_';
-			}
-			
-			if (i == 0 && args.gameView.table[i][j] != L'S') {
-				c = L'_';
-			}
-
-			if ((j == 0 || j == W_GAME - 1) && i < args.gameView.num_tracks + 2) {
-				c = L'|';
-			}
-
 			
 			RECT cellRect;
 			cellRect.left = x + (W_GAME - 1 - j) * width;
@@ -268,27 +270,19 @@ void paint_game_zone(HDC hdc, RECT rect) {
 
 			if (c == L'S') {
 				if (i == 0) {
-					FillRect(hdc, &cellRect, CreateSolidBrush(RGB(0, 0, 0)));
+					FillRect(hdc, &cellRect, CreateSolidBrush(RGB(70, 69, 69)));
 					SetTextColor(hdc, RGB(255, 255, 0));
-					SetBkColor(hdc, RGB(0, 0, 0));
+					SetBkColor(hdc, RGB(70, 69, 69));
 				}
 				else {
-					SetTextColor(hdc, RGB(255, 255, 0));
-					SetBkColor(hdc, RGB(27, 40, 138));
+					SetTextColor(hdc, RGB(255, 0, 0));
+					SetBkColor(hdc, RGB(70, 69, 69));
 				}
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
-			else if(c == L'|' || c == L'_') {
-
-				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(0, 0, 0)));
-				SetTextColor(hdc, RGB(0, 0, 0));
-				SetBkColor(hdc, RGB(0, 0, 0));
-				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
-	
-			}
 			else if (c == L'<' || c == L'>') {
-				SetTextColor(hdc, RGB(255, 0, 0));
-				SetBkColor(hdc, RGB(27, 40, 138));
+				SetTextColor(hdc, RGB(255, 255, 255));
+				SetBkColor(hdc, RGB(70, 69, 69));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 		
 			}
@@ -298,7 +292,6 @@ void paint_game_zone(HDC hdc, RECT rect) {
 				SetBkColor(hdc, RGB(0, 0, 0));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
-
 
 		}
 	}

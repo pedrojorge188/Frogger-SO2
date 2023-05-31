@@ -1,1 +1,8 @@
-﻿
+﻿  frog.c
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(9,10): warning C4067: tokens inesperados após diretiva de pré-processador - esperado um newline
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(38,26): warning C4030: primeira lista de parâmetros formais maior do que a segunda lista
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(38,26): warning C4028: parâmetro formal 1 diferente da declaração
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(38,9): warning C4273: 'LoadBitmapW': vínculo de dll inconsistente
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22000.0\um\winuser.h(10518,1): message : consulte a definição anterior de 'LoadBitmapW'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(156,38): warning C4113: 'DWORD (__cdecl *)(thParams)' difere em listas de parâmetro de 'LPTHREAD_START_ROUTINE'
+  Frog.vcxproj -> C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\x64\Debug\Frog.exe

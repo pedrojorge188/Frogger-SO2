@@ -35,5 +35,6 @@ typedef struct thParams {
 int out_flag = 0;
 void paint_game_zone(HDC hdc, RECT rect);
 void UNICODE_INITIALIZER();
+HBITMAP LoadBitmap(int n);
 
 #endif
