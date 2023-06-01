@@ -11,7 +11,6 @@ typedef void (*INIT_CMDS_MEMORY)(void);
 typedef int (*READ_CMDS_FROM_SHARED_MEMORY)(void);
 
 
-
 void ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped){
 }
 
@@ -28,10 +27,15 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
     HINSTANCE hinstDLL = LoadLibrary(TEXT("sharedMemoryInterator.dll"));
     COPY_GAME_STATUS copyGame = (COPY_GAME_STATUS)GetProcAddress(hinstDLL, "copy_game_to_sharedMemory");
     HANDLE evt = p->updateEvent;
-    HANDLE evt1 = p->hPipes[id].overlap.hEvent;
 
     while (out_flag == 0) {
+        
+        InitializeCriticalSection(&p->critical);
 
+        if (p->hPipes[id].active)
+            p->gameData->table[p->gameData->frogs[id].x][p->gameData->frogs[id].y] = 'S';
+
+        LeaveCriticalSection(&p->critical);
 
         BOOL pipeHasData = PeekNamedPipe(p->hPipes[id].hPipe, NULL, 0, NULL, &bytesAvailable, NULL);
 
@@ -40,7 +44,7 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
             ret = ReadFileEx(p->hPipes[id].hPipe, &receive, sizeof(receive), &p->hPipes[id].overlap, &ReadCompletionRoutine);
 
             InitializeCriticalSection(&p->critical);
-
+                
                 if (receive.key == 1) {
 
                     _tprintf(L"[FROG %d] Disconnected!\n", id + 1, receive.key);
@@ -51,7 +55,7 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
                     copyGame(p->gameData);
                     
                     //p->frogs_connected -= 1;
-                    //p->hPipes[id].active = FALSE;
+                    p->hPipes[id].active = FALSE;
 
                     ExitThread(1);
                   
@@ -73,6 +77,14 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
                 else if (receive.key == 4) {
 
                     moveRight(p->gameData, id);
+                    WritePipe(p->hPipes, p->gameData);
+                    copyGame(p->gameData);
+                    SetEvent(evt);
+                }
+                else if (receive.key == -1) {
+
+                    p->gameData->table[p->gameData->frogs[id].x][p->gameData->frogs[id].y] = ' ';
+                    p->gameData->frogs[id].x = 0;
                     WritePipe(p->hPipes, p->gameData);
                     copyGame(p->gameData);
                     SetEvent(evt);
@@ -485,6 +497,11 @@ void moveUp(game* g, int id) {
 
     g->table[g->frogs[id].x][g->frogs[id].y] = ' ';
 
+    if (g->table[g->frogs[id].x + 1][g->frogs[id].y] == 'O') {
+        g->table[g->frogs[id].x][g->frogs[id].y] = 'S';
+        return;
+    }
+
     if (g->table[g->frogs[id].x + 1][g->frogs[id].y] == '<' || g->table[g->frogs[id].x + 1][g->frogs[id].y] == '>' )
     {
         g->frogs[id].x = 0;
@@ -511,6 +528,11 @@ void moveUp(game* g, int id) {
 
 void moveLeft(game* g, int id) {
 
+    if (g->table[g->frogs[id].x][g->frogs[id].y + 1] == 'O') {
+        g->table[g->frogs[id].x][g->frogs[id].y] = 'S';
+        return;
+    }
+
     if (g->frogs[id].y + 1 < W_GAME - 1) {
 
         g->table[g->frogs[id].x][g->frogs[id].y] = ' ';
@@ -535,6 +557,11 @@ void moveLeft(game* g, int id) {
 }
 
 void moveRight(game* g, int id) {
+
+    if (g->table[g->frogs[id].x][g->frogs[id].y - 1] == 'O') {
+        g->table[g->frogs[id].x][g->frogs[id].y] = 'S';
+        return;
+    }
 
     if (g->frogs[id].y + 1 < W_GAME - 1) {
 
@@ -561,8 +588,10 @@ void moveRight(game* g, int id) {
 void WritePipe(PipeData  * p, game * g) {
 
     api send;
-
+    
     for (int i = 0; i < 2; i++) {
+
+        send.points = g->frogs[i].points;
 
         if (p[i].active == TRUE) {
 
@@ -570,7 +599,6 @@ void WritePipe(PipeData  * p, game * g) {
                 for (int j = 0; j < W_GAME; j++) {
 
                     
-                    send.points = g->frogs[i].points;
                     send.table[i][j] = g->table[i][j];
                     send.num_tracks = g->num_tracks;
 
@@ -622,12 +650,13 @@ void moveCars(moveParam* p) {
             p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y] = ' ';
 
         if (p->gameData->cars[p->track][j].orientation == 1) {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] != 'O'){
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] != 'O' ){
 
                 if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y + 1] == 'S') {
                     for (int i = 0; i < 2; i++) {
                         if (p->gameData->frogs[i].x == p->gameData->cars[p->track][j].x && p->gameData->frogs[i].y == p->gameData->cars[p->track][j].y + 1) {
                             p->gameData->frogs[i].x = 0;
+     
                         }
                     }
                 }
@@ -641,13 +670,16 @@ void moveCars(moveParam* p) {
             }
         }
         else {
-            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] != 'O') {
+            if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] != 'O' ) {
 
                 if (p->gameData->table[p->gameData->cars[p->track][j].x][p->gameData->cars[p->track][j].y - 1] == 'S') {
                     for (int i = 0; i < 2; i++) {
+
+                    
                         if (p->gameData->frogs[i].x == p->gameData->cars[p->track][j].x && p->gameData->frogs[i].y == p->gameData->cars[p->track][j].y - 1) {
                             p->gameData->frogs[i].x = 0;
                         }
+ 
                     }
                 }
                 p->gameData->cars[p->track][j].y -= 1;
@@ -670,12 +702,6 @@ void moveCars(moveParam* p) {
         }
     }
 
-    //atencao
-    for (int i = 0; i < 2; i++) {
-        if(p->hPipes[i].active)
-             p->gameData->table[p->gameData->frogs[i].x][p->gameData->frogs[i].y] = 'S';
-
-    }
 
 }
 

@@ -5,8 +5,7 @@
 
 LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 
-
-TCHAR szProgName[] = TEXT("Base");
+TCHAR szProgName[] = TEXT("FroggerGame");
 thParams args;
 OVERLAPPED overlapped;
 
@@ -14,10 +13,30 @@ void ReadCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, L
 
 void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {}
 
-DWORD WINAPI receive_thread(thParams p) {
+DWORD WINAPI receive_server_infos(thParams p) {
 
 	DWORD bytesAvailable = 0;
 	api receive;
+
+	while (1) {
+
+
+		if (WaitForSingleObject(OpenEventW(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
+			
+			if (MessageBox(args.mainWindow, L"Server shutdown", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
+				exit(-1);
+			}
+
+		}
+	}
+
+	ExitThread(1);
+}
+
+DWORD WINAPI receive_thread(thParams p) {
+
+	DWORD bytesAvailable = 0;
+	api receive = { 0 };
 
 	while (1) {
 
@@ -25,18 +44,16 @@ DWORD WINAPI receive_thread(thParams p) {
 
 		if (pipeHasData && bytesAvailable > 0) {
 
-			args.status = 1;
-
 			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine))
 			{
 				EnterCriticalSection(&p.critical);
 
-				args.gameView.num_tracks = receive.num_tracks;
-				args.myPoints = receive.points;
+				p.gameView.num_tracks = receive.num_tracks;
+				p.myPoints = receive.points;
 
 				for (int i = H_GAME - 1; i >= -1; i--) {
 					for (int j = W_GAME - 1; j >= 0; j--) {
-						args.gameView.table[i][j] = receive.table[i][j];
+						p.gameView.table[i][j] = receive.table[i][j];
 					}
 				}
 
@@ -57,7 +74,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	MSG lpMsg;
 	WNDCLASSEX wcApp;
 	api initialize_game;
-	HANDLE hThreads[1];
+	HANDLE hThreads[2];
 	wchar_t szExePath[150];
 	GetModuleFileName(NULL, szExePath, 150);
 
@@ -87,7 +104,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	wcApp.cbClsExtra = 0;
 	wcApp.cbWndExtra = 0;
-	wcApp.hbrBackground = CreateSolidBrush(RGB(70, 69, 69));
+	wcApp.hbrBackground = CreateSolidBrush(RGB(0, 0, 0));
 
 	if (!RegisterClassEx(&wcApp))
 		return(0);
@@ -99,8 +116,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		1280,
-		720,
+		800,    // Largura da janela (tela inteira)
+		800,
 		(HWND)HWND_DESKTOP,
 		(HMENU)NULL,
 		(HINSTANCE)hInst,
@@ -154,6 +171,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	}
 
 	hThreads[0] = CreateThread(NULL, 0, receive_thread, &args, 0, 0);
+	hThreads[1] = CreateThread(NULL, 0, receive_server_infos, &args, 0, 0);
+
 	args.receiver = hThreads[0];
 
 	while (GetMessage(&lpMsg, NULL, 0, 0)) {
@@ -164,6 +183,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	}
 
 	return((int)lpMsg.wParam);
+
+	WaitForMultipleObjects(2, &hThreads, TRUE, INFINITE);
 }
 
 
@@ -191,22 +212,35 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		PostQuitMessage(0);
 		break;
 
+	case WM_LBUTTONDOWN:
+
+		send.key = -1;
+		WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+		break;
+
 	case WM_KEYDOWN:
 
 		switch (wParam)
 		{
+
 		case VK_LEFT:
+
 			send.key = 3;
 			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 			break;
+
 		case VK_RIGHT:
+
 			send.key = 4;
 			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 			break;
+
 		case VK_UP:
+
 			send.key = 2;
 			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 			break;
+
 		case VK_ESCAPE:
 
 			SuspendThread(args.receiver);
@@ -252,10 +286,10 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 void paint_game_zone(HDC hdc, RECT rect) {
 
-	int width = 50;
-	int x = 100;
-	int height = 50;
-	int y = 80;
+	int width = 800 / W_GAME;
+	int x = 800 - width;
+	int height = 800 / H_GAME;
+	int y = 800 - height;
 
 	for (int i = H_GAME - 1; i >= 0; i--) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
@@ -263,33 +297,26 @@ void paint_game_zone(HDC hdc, RECT rect) {
 			wchar_t c = args.gameView.table[i][j];
 			
 			RECT cellRect;
-			cellRect.left = x + (W_GAME - 1 - j) * width;
-			cellRect.top = y + (H_GAME - 1 - i) * height;
+			cellRect.left = x - j * width;
+			cellRect.top = y - i * height;
 			cellRect.right = cellRect.left + width;
 			cellRect.bottom = cellRect.top + height;
 
 			if (c == L'S') {
-				if (i == 0) {
-					FillRect(hdc, &cellRect, CreateSolidBrush(RGB(70, 69, 69)));
-					SetTextColor(hdc, RGB(255, 255, 0));
-					SetBkColor(hdc, RGB(70, 69, 69));
-				}
-				else {
-					SetTextColor(hdc, RGB(255, 0, 0));
-					SetBkColor(hdc, RGB(70, 69, 69));
-				}
+				SetTextColor(hdc, RGB(255, 0, 0));
+				SetBkColor(hdc, RGB(0, 0, 0));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
 			else if (c == L'<' || c == L'>') {
 				SetTextColor(hdc, RGB(255, 255, 255));
-				SetBkColor(hdc, RGB(70, 69, 69));
+				SetBkColor(hdc, RGB(0, 0, 0));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 		
 			}
 			else if (c == L'O') {
-				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(0, 0, 0)));
-				SetTextColor(hdc, RGB(0, 0, 0));
-				SetBkColor(hdc, RGB(0, 0, 0));
+				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(255, 255, 255)));
+				SetTextColor(hdc, RGB(255, 255, 255));
+				SetBkColor(hdc, RGB(255, 255, 255));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
 
