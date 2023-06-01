@@ -510,7 +510,7 @@ void moveUp(game* g, int id) {
 
         g->table[g->frogs[id].x][g->frogs[id].y] = ' ';
 
-        if (g->frogs[id].x + 1 == g->num_tracks) {
+        if (g->frogs[id].x + 1 == g->num_tracks + 1) {
 
             g->frogs[id].x = 0;
             g->frogs[id].points += 10;
@@ -591,6 +591,7 @@ void WritePipe(PipeData  * p, game * g) {
     
     for (int i = 0; i < 2; i++) {
 
+        send.num_tracks = g->num_tracks;
         send.points = g->frogs[i].points;
 
         if (p[i].active == TRUE) {
@@ -600,7 +601,7 @@ void WritePipe(PipeData  * p, game * g) {
 
                     
                     send.table[i][j] = g->table[i][j];
-                    send.num_tracks = g->num_tracks;
+                   
 
                 }
             }

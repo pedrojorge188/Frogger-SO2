@@ -48,14 +48,14 @@ DWORD WINAPI receive_thread(thParams p) {
 			{
 				EnterCriticalSection(&p.critical);
 
-				p.gameView.num_tracks = receive.num_tracks;
-				p.myPoints = receive.points;
-
-				for (int i = H_GAME - 1; i >= -1; i--) {
-					for (int j = W_GAME - 1; j >= 0; j--) {
-						p.gameView.table[i][j] = receive.table[i][j];
+					p.gameView.num_tracks = receive.num_tracks;
+					p.myPoints = receive.points;
+			
+					for (int i = H_GAME - 1; i >= -1; i--) {
+						for (int j = W_GAME - 1; j >= 0; j--) {
+							p.gameView.table[i][j] = receive.table[i][j];
+						}
 					}
-				}
 
 				InvalidateRect(p.mainWindow, NULL, TRUE);
 
@@ -124,15 +124,20 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		0);
 
 
-	HMENU hMenu = CreateMenu();
 	HMENU hSubMenu = CreatePopupMenu();
+	HMENU hMenubar = CreateMenu();
 
-	AppendMenu(hSubMenu, MF_STRING, 6, L"&BitMap1");
-	AppendMenu(hSubMenu, MF_STRING, 7, L"&BitMap2");
+	HMENU hMenu = CreateMenu();
+	HMENU hMenuStatus = CreateMenu();
 
-	AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, L"&Bitmaps");
+	AppendMenu(hMenu, MF_STRING, 1, L"Bitmap 1");
+	AppendMenu(hMenu, MF_STRING, 2, L"Bitmap 2");
 
-	SetMenu(hWnd, hMenu);
+	AppendMenu(hMenuStatus, MF_STRING, 3, L"Points");
+	AppendMenu(hMenubar, MF_POPUP, (UINT_PTR)hMenu, L"Bitmaps");
+	AppendMenu(hMenubar, MF_POPUP, (UINT_PTR)hMenuStatus, L"Status");
+
+	SetMenu(hWnd, hMenubar);
 
 	ShowWindow(hWnd, nCmdShow);
 
@@ -190,13 +195,23 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam) {
 
-
 	HDC hdc = NULL; RECT rect;
 	PAINTSTRUCT ps;
 	api send;
 
 	switch (messg) {
+	case WM_COMMAND:
+	{
 
+		if (wParam == 3)
+		{
+			wchar_t msg[100];
+			swprintf(msg, 100, L"My Points: %d", args.myPoints);
+
+			MessageBox(hWnd, msg, L"Points", MB_OK);
+		}
+		break;
+	}
 	case WM_CLOSE:
 
 		if (MessageBox(hWnd, L"DO YOU WANT TO QUIT?", L"Confirmation", MB_YESNO | MB_ICONQUESTION) == IDYES) {
@@ -256,7 +271,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_PAINT:
 
 
-
 		hdc = BeginPaint(hWnd, &ps);
 
 		GetClientRect(hWnd, &rect);
@@ -264,10 +278,35 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		HDC hdc = GetDC(hWnd);
 
 		EnterCriticalSection(&args.critical);
-			
+
+			int width = 800 / W_GAME;
+			int x = 800 - width;
+			int height = 800 / H_GAME;
+			int y = 800 - height;
+				
+			for (int i = H_GAME - 1; i >= 0; i--) {
+				for (int j = W_GAME - 1; j >= 0; j--) {
+
+					RECT cellRect;
+					cellRect.left = x - j * width;
+					cellRect.top = y - i * height;
+					cellRect.right = cellRect.left + width;
+					cellRect.bottom = cellRect.top + height;
+
+					if (i == 0 || i >= args.gameView.num_tracks + 1) {
+						HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
+						FillRect(hdc, &cellRect, blueBrush);
+						DeleteObject(blueBrush);
+					}
+
+				}
+			}
+
+
 			paint_game_zone(hdc, rect);
 
 		LeaveCriticalSection(&args.critical);
+
 
 		ReleaseDC(hWnd, hdc);
 
@@ -286,16 +325,18 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 void paint_game_zone(HDC hdc, RECT rect) {
 
+
 	int width = 800 / W_GAME;
 	int x = 800 - width;
 	int height = 800 / H_GAME;
 	int y = 800 - height;
 
+
 	for (int i = H_GAME - 1; i >= 0; i--) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
 
 			wchar_t c = args.gameView.table[i][j];
-			
+
 			RECT cellRect;
 			cellRect.left = x - j * width;
 			cellRect.top = y - i * height;
@@ -303,8 +344,11 @@ void paint_game_zone(HDC hdc, RECT rect) {
 			cellRect.bottom = cellRect.top + height;
 
 			if (c == L'S') {
+				if (i == 0) 
+					SetBkColor(hdc, RGB(0, 0, 255));
+				else 
+					SetBkColor(hdc, RGB(0, 0, 0));		
 				SetTextColor(hdc, RGB(255, 0, 0));
-				SetBkColor(hdc, RGB(0, 0, 0));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
 			else if (c == L'<' || c == L'>') {
@@ -319,6 +363,7 @@ void paint_game_zone(HDC hdc, RECT rect) {
 				SetBkColor(hdc, RGB(255, 255, 255));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
+
 
 		}
 	}
