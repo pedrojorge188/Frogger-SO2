@@ -29,6 +29,7 @@ typedef struct thParams {
 	game gameView;
 	int myPoints;
 	HANDLE receiver;
+	wchar_t oldTable[10][20];
 }thParams;
 
 

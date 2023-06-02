@@ -73,5 +73,6 @@ DWORD __stdcall input_thread(LPVOID lpParam);
 int ChangeNumTracks(INT value);
 int ChangeSpeed(INT value);
 void invertOrientation(game* g);
+void moveDown(game* g, int id);
 
 #endif

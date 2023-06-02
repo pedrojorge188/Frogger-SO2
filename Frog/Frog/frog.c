@@ -163,7 +163,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	if (initialize_game.msg == 0) {
 
-			int result = MessageBox(hWnd, L"Do you want to play Multyplayer?", L"Game Mode Selection", MB_YESNO | MB_ICONQUESTION);
+		int result = MessageBox(hWnd, L"Do you want to play Multyplayer?", L"Game Mode Selection", MB_YESNO | MB_ICONQUESTION);
 
 		if (result == IDYES) {
 			initialize_game.msg = 2;
@@ -266,6 +266,11 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 			break;
 
+		case VK_DOWN:
+
+			send.key = 5;
+			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+			break;
 		case VK_ESCAPE:
 
 			SuspendThread(args.receiver);
