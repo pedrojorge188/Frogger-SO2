@@ -54,7 +54,6 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
                     WritePipe(p->hPipes, p->gameData);
                     copyGame(p->gameData);
                     
-                    //p->frogs_connected -= 1;
                     p->hPipes[id].active = FALSE;
 
                     ExitThread(1);
@@ -348,7 +347,7 @@ int _tmain(int argc, TCHAR* argv[]) {
     structTh.gameData = &gameData;
     structTh.thIDs = &hThreads;
     structTh.move_threads = &hMovementCars;
-
+    gameData.mode = 0;
     structTh.hRead = CreateSemaphore(NULL, 0, BUFFER_SIZE, READ_SEMAPHORE);
     structTh.hWrite = CreateSemaphore(NULL, BUFFER_SIZE, BUFFER_SIZE, WRITE_SEMAPHORE);
     structTh.updateEvent = CreateEvent(NULL, TRUE, FALSE, UPDATE_EVENT);
@@ -415,8 +414,11 @@ int _tmain(int argc, TCHAR* argv[]) {
 
             if (GetOverlappedResult(structTh.hPipes[index].hPipe, &structTh.hPipes[index].overlap, &nBytes, FALSE)) {
 
-                ReadFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
+                start_info.msg = gameData.mode;
 
+                WriteFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
+
+                ReadFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
 
                 _tprintf(L"[FROG] (%d) connected!\n", index + 1);
 
@@ -432,7 +434,7 @@ int _tmain(int argc, TCHAR* argv[]) {
                     }
                 }
 
-                else if (structTh.gameData->mode == 2 && structTh.frogs_connected + 1 > 1) {
+                if( structTh.frogs_connected + 1 > 1) {
                     for (int i = 0; i < gameData.num_tracks; i++) {
                         ResumeThread(hMovementCars[i]);
                     }

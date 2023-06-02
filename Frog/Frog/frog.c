@@ -22,7 +22,7 @@ DWORD WINAPI receive_server_infos(thParams p) {
 
 
 		if (WaitForSingleObject(OpenEventW(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
-			
+
 			if (MessageBox(args.mainWindow, L"Server shutdown", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
 				exit(-1);
 			}
@@ -37,6 +37,10 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	DWORD bytesAvailable = 0;
 	api receive = { 0 };
+	api send = { 0 };
+	send.key = -1;
+
+	WriteFileEx(p.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 
 	while (1) {
 
@@ -48,14 +52,14 @@ DWORD WINAPI receive_thread(thParams p) {
 			{
 				EnterCriticalSection(&p.critical);
 
-					p.gameView.num_tracks = receive.num_tracks;
-					p.myPoints = receive.points;
-			
-					for (int i = H_GAME - 1; i >= -1; i--) {
-						for (int j = W_GAME - 1; j >= 0; j--) {
-							p.gameView.table[i][j] = receive.table[i][j];
-						}
+				p.gameView.num_tracks = receive.num_tracks;
+				p.myPoints = receive.points;
+
+				for (int i = H_GAME - 1; i >= -1; i--) {
+					for (int j = W_GAME - 1; j >= 0; j--) {
+						p.gameView.table[i][j] = receive.table[i][j];
 					}
+				}
 
 				InvalidateRect(p.mainWindow, NULL, TRUE);
 
@@ -109,7 +113,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	if (!RegisterClassEx(&wcApp))
 		return(0);
 
-	
+
 	hWnd = CreateWindow(
 		szProgName,
 		TEXT("Frooger-Game"),
@@ -155,16 +159,22 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	args.pipe = hPipe;
 	args.status = 0;
 
-	int result = MessageBox(hWnd, L"Do you want to play Multyplayer?", L"Game Mode Selection", MB_YESNO | MB_ICONQUESTION);
+	ReadFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
 
-	if (result == IDYES) {
-		initialize_game.msg = 2;
-	}
-	else if (result = IDNO) {
-		initialize_game.msg = 1;
-	}
+	if (initialize_game.msg == 0) {
 
-	WriteFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
+			int result = MessageBox(hWnd, L"Do you want to play Multyplayer?", L"Game Mode Selection", MB_YESNO | MB_ICONQUESTION);
+
+		if (result == IDYES) {
+			initialize_game.msg = 2;
+		}
+		else if (result = IDNO) {
+			initialize_game.msg = 1;
+		}
+
+		WriteFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
+
+	}
 
 	ZeroMemory(&overlapped, sizeof(overlapped));
 
@@ -270,7 +280,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 	case WM_PAINT:
 
-
 		hdc = BeginPaint(hWnd, &ps);
 
 		GetClientRect(hWnd, &rect);
@@ -279,34 +288,33 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		EnterCriticalSection(&args.critical);
 
-			int width = 800 / W_GAME;
-			int x = 800 - width;
-			int height = 800 / H_GAME;
-			int y = 800 - height;
-				
-			for (int i = H_GAME - 1; i >= 0; i--) {
-				for (int j = W_GAME - 1; j >= 0; j--) {
+		int width = 800 / W_GAME;
+		int x = 800 - width;
+		int height = 800 / H_GAME;
+		int y = 800 - height;
 
-					RECT cellRect;
-					cellRect.left = x - j * width;
-					cellRect.top = y - i * height;
-					cellRect.right = cellRect.left + width;
-					cellRect.bottom = cellRect.top + height;
+		for (int i = H_GAME - 1; i >= 0; i--) {
+			for (int j = W_GAME - 1; j >= 0; j--) {
 
-					if (i == 0 || i >= args.gameView.num_tracks + 1) {
-						HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
-						FillRect(hdc, &cellRect, blueBrush);
-						DeleteObject(blueBrush);
-					}
+				RECT cellRect;
+				cellRect.left = x - j * width;
+				cellRect.top = y - i * height;
+				cellRect.right = cellRect.left + width;
+				cellRect.bottom = cellRect.top + height;
 
+				if (i == 0 || i >= args.gameView.num_tracks + 1) {
+					HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
+					FillRect(hdc, &cellRect, blueBrush);
+					DeleteObject(blueBrush);
 				}
+
 			}
+		}
 
 
-			paint_game_zone(hdc, rect);
+		paint_game_zone(hdc, rect);
 
 		LeaveCriticalSection(&args.critical);
-
 
 		ReleaseDC(hWnd, hdc);
 
@@ -325,12 +333,10 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 void paint_game_zone(HDC hdc, RECT rect) {
 
-
 	int width = 800 / W_GAME;
 	int x = 800 - width;
 	int height = 800 / H_GAME;
 	int y = 800 - height;
-
 
 	for (int i = H_GAME - 1; i >= 0; i--) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
@@ -344,10 +350,10 @@ void paint_game_zone(HDC hdc, RECT rect) {
 			cellRect.bottom = cellRect.top + height;
 
 			if (c == L'S') {
-				if (i == 0) 
+				if (i == 0)
 					SetBkColor(hdc, RGB(0, 0, 255));
-				else 
-					SetBkColor(hdc, RGB(0, 0, 0));		
+				else
+					SetBkColor(hdc, RGB(0, 0, 0));
 				SetTextColor(hdc, RGB(255, 0, 0));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
@@ -355,7 +361,7 @@ void paint_game_zone(HDC hdc, RECT rect) {
 				SetTextColor(hdc, RGB(255, 255, 255));
 				SetBkColor(hdc, RGB(0, 0, 0));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
-		
+
 			}
 			else if (c == L'O') {
 				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(255, 255, 255)));
@@ -363,7 +369,6 @@ void paint_game_zone(HDC hdc, RECT rect) {
 				SetBkColor(hdc, RGB(255, 255, 255));
 				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
 			}
-
 
 		}
 	}
