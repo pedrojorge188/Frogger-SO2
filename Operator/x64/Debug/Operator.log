@@ -1,7 +1,7 @@
 ﻿  operator.c
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(153,57): warning C4267: 'função': conversão de 'size_t' para 'DWORD', possível perda de dados
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(154,58): warning C4267: 'função': conversão de 'size_t' para 'DWORD', possível perda de dados
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(154,104): warning C4267: 'inicializando': conversão de 'size_t' para 'SHORT', possível perda de dados
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(195,50): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[3]'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(195,41): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(153,61): warning C4267: 'função': conversão de 'size_t' para 'DWORD', possível perda de dados
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(154,62): warning C4267: 'função': conversão de 'size_t' para 'DWORD', possível perda de dados
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(154,109): warning C4267: 'inicializando': conversão de 'size_t' para 'SHORT', possível perda de dados
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(196,50): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[3]'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\operator.c(196,41): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
   Operator.vcxproj -> C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Operator\x64\Debug\Operator.exe

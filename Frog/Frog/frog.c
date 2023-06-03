@@ -20,7 +20,6 @@ DWORD WINAPI receive_server_infos(thParams p) {
 
 	while (1) {
 
-
 		if (WaitForSingleObject(OpenEventW(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
 
 			if (MessageBox(args.mainWindow, L"Server shutdown", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
@@ -42,14 +41,25 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	WriteFileEx(p.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 
+	HDC hdc = GetDC(p.mainWindow);
+	RECT rect;
+	GetClientRect(p.mainWindow, &rect);
+
+	HDC hdcBuffer = CreateCompatibleDC(hdc);
+	HBITMAP hBitmapBuffer = CreateCompatibleBitmap(hdc, rect.right - rect.left, rect.bottom - rect.top);
+	HBITMAP hBitmapOld = (HBITMAP)SelectObject(hdcBuffer, hBitmapBuffer);
+
+	int width = 800 / W_GAME;
+	int x = 800 - width;
+	int height = 800 / H_GAME;
+	int y = 800 - height;
+
 	while (1) {
 
 		BOOL pipeHasData = PeekNamedPipe(p.pipe, NULL, 0, NULL, &bytesAvailable, NULL);
-
 		if (pipeHasData && bytesAvailable > 0) {
 
-			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine))
-			{
+			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine)) {
 				EnterCriticalSection(&p.critical);
 
 				p.gameView.num_tracks = receive.num_tracks;
@@ -61,12 +71,103 @@ DWORD WINAPI receive_thread(thParams p) {
 					}
 				}
 
-				InvalidateRect(p.mainWindow, NULL, TRUE);
+				HBRUSH hBrush = NULL;
 
+				for (int i = H_GAME - 1; i >= 0; i--) {
+					for (int j = W_GAME - 1; j >= 0; j--) {
+						wchar_t c = p.gameView.table[i][j];
+
+						RECT cellRect;
+						cellRect.left = x - j * width;
+						cellRect.top = y - i * height;
+						cellRect.right = cellRect.left + width;
+						cellRect.bottom = cellRect.top + height;
+
+						for (int i = H_GAME - 1; i >= -1; i--) {
+							for (int j = W_GAME - 1; j >= 0; j--) {
+								p.gameView.table[i][j] = receive.table[i][j];
+							}
+						}
+						switch (c) {
+
+						case L'S':
+							if (i == 0) {
+								hBrush = CreateSolidBrush(RGB(0, 0, 255));
+								SetBkColor(hdcBuffer, RGB(0, 0, 255));
+								SetTextColor(hdcBuffer, RGB(255, 0, 0));
+							}
+							else {
+								hBrush = CreateSolidBrush(RGB(0, 0, 0));
+								SetBkColor(hdcBuffer, RGB(0, 0, 0));
+								SetTextColor(hdcBuffer, RGB(255, 0, 0));
+							}
+							break;
+
+						case L'<':
+						case L'>':
+							hBrush = CreateSolidBrush(RGB(0, 0, 0));
+							SetBkColor(hdcBuffer, RGB(0, 0, 0));
+							SetTextColor(hdcBuffer, RGB(255, 255, 255));
+							break;
+
+						case L'O':
+							hBrush = CreateSolidBrush(RGB(255, 255, 255));
+							SetBkColor(hdcBuffer, RGB(255, 255, 255));
+							SetTextColor(hdcBuffer, RGB(255, 255, 255));
+							break;
+
+						default:
+
+							hBrush = CreateSolidBrush(RGB(0, 0, 0));
+							SetBkColor(hdcBuffer, RGB(0, 0, 0));
+							SetTextColor(hdcBuffer, RGB(0, 0, 0));
+							break;
+						}
+
+						if (hBrush != NULL) {
+							FillRect(hdcBuffer, &cellRect, hBrush);
+							DrawTextW(hdcBuffer, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+
+							DeleteObject(hBrush);
+							hBrush = NULL;
+						}
+					}
+				}
+
+				for (int i = H_GAME - 1; i >= 0; i--) {
+					for (int j = W_GAME - 1; j >= 0; j--) {
+
+						RECT cellRect;
+						cellRect.left = x - j * width;
+						cellRect.top = y - i * height;
+						cellRect.right = cellRect.left + width;
+						cellRect.bottom = cellRect.top + height;
+
+						if (i == 0 || i >= args.gameView.num_tracks + 1) {
+							HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
+							FillRect(hdcBuffer, &cellRect, blueBrush);
+							DeleteObject(blueBrush);
+							if (p.gameView.table[i][j] == L'S') {
+								SetBkColor(hdcBuffer, RGB(0, 0, 255));
+								SetTextColor(hdcBuffer, RGB(255, 0, 0));
+								DrawTextW(hdcBuffer, &p.gameView.table[i][j], 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+							}
+						}
+
+					}
+				}
+
+				BitBlt(hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hdcBuffer, 0, 0, SRCCOPY);
 				LeaveCriticalSection(&p.critical);
 			}
 		}
 	}
+
+	SelectObject(hdcBuffer, hBitmapOld);
+	DeleteObject(hBitmapBuffer);
+	DeleteDC(hdcBuffer);
+
+	ReleaseDC(p.mainWindow, hdc);
 
 	ExitThread(1);
 }
@@ -243,6 +344,11 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 		break;
 
+	case WM_SIZE:
+
+		InvalidateRect(hWnd, NULL, FALSE);
+		break;
+
 	case WM_KEYDOWN:
 
 		switch (wParam)
@@ -271,6 +377,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			send.key = 5;
 			WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 			break;
+
 		case VK_ESCAPE:
 
 			SuspendThread(args.receiver);
