@@ -19,7 +19,7 @@ DWORD WINAPI receive_server_infos(thParams p) {
 	api receive;
 
 	while (1) {
-
+		
 		if (WaitForSingleObject(OpenEventW(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
 
 			if (MessageBox(args.mainWindow, L"Server shutdown", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
@@ -31,8 +31,10 @@ DWORD WINAPI receive_server_infos(thParams p) {
 
 	ExitThread(1);
 }
-
 DWORD WINAPI receive_thread(thParams p) {
+	BITMAP bmp[7];
+	HBITMAP hBmp[7];
+	HDC bmpDC[7];
 
 	DWORD bytesAvailable = 0;
 	api receive = { 0 };
@@ -43,22 +45,43 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	HDC hdc = GetDC(p.mainWindow);
 	RECT rect;
+
 	GetClientRect(p.mainWindow, &rect);
 
 	HDC hdcBuffer = CreateCompatibleDC(hdc);
+
+	hBmp[0] = (HBITMAP)LoadImage(NULL, TEXT("gameFrog.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[0], sizeof(bmp[0]), &bmp[0]);
+	bmpDC[0] = CreateCompatibleDC(hdc);
+	GetObject(hBmp[0], sizeof(BITMAP), &bmp[0]);
+
+	hBmp[1] = (HBITMAP)LoadImage(NULL, TEXT("car1.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[1], sizeof(bmp[1]), &bmp[1]);
+	bmpDC[1] = CreateCompatibleDC(hdc);
+	GetObject(hBmp[1], sizeof(BITMAP), &bmp[1]);
+
+	hBmp[2] = (HBITMAP)LoadImage(NULL, TEXT("car2.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[2], sizeof(bmp[2]), &bmp[2]);
+	bmpDC[2] = CreateCompatibleDC(hdc);
+	GetObject(hBmp[2], sizeof(BITMAP), &bmp[2]);
+
+	hBmp[6] = (HBITMAP)LoadImage(NULL, TEXT("wall.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[6], sizeof(bmp[6]), &bmp[6]);
+	bmpDC[6] = CreateCompatibleDC(hdc);
+	GetObject(hBmp[6], sizeof(BITMAP), &bmp[6]);
+
 	HBITMAP hBitmapBuffer = CreateCompatibleBitmap(hdc, rect.right - rect.left, rect.bottom - rect.top);
 	HBITMAP hBitmapOld = (HBITMAP)SelectObject(hdcBuffer, hBitmapBuffer);
 
-	int width = 800 / W_GAME;
-	int x = 800 - width;
-	int height = 800 / H_GAME;
-	int y = 800 - height;
+	int width = (rect.right - rect.left) / W_GAME;
+	int height = (rect.bottom - rect.top) / H_GAME;
+
+	int x = rect.right - rect.left - width;
+	int y = rect.bottom - rect.top - height;
 
 	while (1) {
-
 		BOOL pipeHasData = PeekNamedPipe(p.pipe, NULL, 0, NULL, &bytesAvailable, NULL);
 		if (pipeHasData && bytesAvailable > 0) {
-
 			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine)) {
 				EnterCriticalSection(&p.critical);
 
@@ -66,14 +89,14 @@ DWORD WINAPI receive_thread(thParams p) {
 				p.myPoints = receive.points;
 
 				for (int i = H_GAME - 1; i >= -1; i--) {
-					for (int j = W_GAME - 1; j >= 0; j--) {
+					for (int j = 0; j < W_GAME; j++) {
 						p.gameView.table[i][j] = receive.table[i][j];
 					}
 				}
 
-				HBRUSH hBrush = NULL;
+				HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
 
-				for (int i = H_GAME - 1; i >= 0; i--) {
+				for (int i = 0; i < H_GAME; i++) {
 					for (int j = W_GAME - 1; j >= 0; j--) {
 						wchar_t c = p.gameView.table[i][j];
 
@@ -84,40 +107,35 @@ DWORD WINAPI receive_thread(thParams p) {
 						cellRect.bottom = cellRect.top + height;
 
 						for (int i = H_GAME - 1; i >= -1; i--) {
-							for (int j = W_GAME - 1; j >= 0; j--) {
+							for (int j = 0; j < W_GAME; j++) {
 								p.gameView.table[i][j] = receive.table[i][j];
 							}
 						}
+
 						switch (c) {
-
 						case L'S':
-							if (i == 0) {
-								hBrush = CreateSolidBrush(RGB(0, 0, 255));
-								SetBkColor(hdcBuffer, RGB(0, 0, 255));
-								SetTextColor(hdcBuffer, RGB(255, 0, 0));
-							}
-							else {
-								hBrush = CreateSolidBrush(RGB(0, 0, 0));
-								SetBkColor(hdcBuffer, RGB(0, 0, 0));
-								SetTextColor(hdcBuffer, RGB(255, 0, 0));
+							if (p.bitmap == 1) {
+								SelectObject(bmpDC[0], hBmp[0]);
+								StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[0], 0, 0, bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
 							}
 							break;
-
 						case L'<':
+							if (p.bitmap == 1) {
+								SelectObject(bmpDC[1], hBmp[1]);
+								StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[1], 0, 0, bmp[1].bmWidth, bmp[1].bmHeight, SRCCOPY);
+							}
+							break;
 						case L'>':
-							hBrush = CreateSolidBrush(RGB(0, 0, 0));
-							SetBkColor(hdcBuffer, RGB(0, 0, 0));
-							SetTextColor(hdcBuffer, RGB(255, 255, 255));
+							if (p.bitmap == 1) {
+								SelectObject(bmpDC[2], hBmp[2]);
+								StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[2], 0, 0, bmp[2].bmWidth, bmp[2].bmHeight, SRCCOPY);
+							}
 							break;
-
 						case L'O':
-							hBrush = CreateSolidBrush(RGB(255, 255, 255));
-							SetBkColor(hdcBuffer, RGB(255, 255, 255));
-							SetTextColor(hdcBuffer, RGB(255, 255, 255));
+							SelectObject(bmpDC[6], hBmp[6]);
+							StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[6], 0, 0, bmp[6].bmWidth, bmp[6].bmHeight, SRCCOPY);
 							break;
-
 						default:
-
 							hBrush = CreateSolidBrush(RGB(0, 0, 0));
 							SetBkColor(hdcBuffer, RGB(0, 0, 0));
 							SetTextColor(hdcBuffer, RGB(0, 0, 0));
@@ -126,20 +144,17 @@ DWORD WINAPI receive_thread(thParams p) {
 
 						if (hBrush != NULL) {
 							FillRect(hdcBuffer, &cellRect, hBrush);
-							DrawTextW(hdcBuffer, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
-
 							DeleteObject(hBrush);
 							hBrush = NULL;
 						}
 					}
 				}
 
-				for (int i = H_GAME - 1; i >= 0; i--) {
+				for (int i = 0; i < H_GAME; i++) {
 					for (int j = W_GAME - 1; j >= 0; j--) {
-
 						RECT cellRect;
-						cellRect.left = x - j * width;
-						cellRect.top = y - i * height;
+						cellRect.left = x - j * width + 1;
+						cellRect.top = y - i * height + 1;
 						cellRect.right = cellRect.left + width;
 						cellRect.bottom = cellRect.top + height;
 
@@ -147,13 +162,13 @@ DWORD WINAPI receive_thread(thParams p) {
 							HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
 							FillRect(hdcBuffer, &cellRect, blueBrush);
 							DeleteObject(blueBrush);
+
 							if (p.gameView.table[i][j] == L'S') {
-								SetBkColor(hdcBuffer, RGB(0, 0, 255));
-								SetTextColor(hdcBuffer, RGB(255, 0, 0));
-								DrawTextW(hdcBuffer, &p.gameView.table[i][j], 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+								if (p.bitmap == 1) {
+									StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[0], 0, 0, bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
+								}
 							}
 						}
-
 					}
 				}
 
@@ -172,7 +187,6 @@ DWORD WINAPI receive_thread(thParams p) {
 	ExitThread(1);
 }
 
-
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
 
 	HWND hWnd;
@@ -182,12 +196,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	HANDLE hThreads[2];
 	wchar_t szExePath[150];
 	GetModuleFileName(NULL, szExePath, 150);
-
-	wchar_t* pLastSlash = wcsrchr(szExePath, L'\\');
-	if (pLastSlash)
-		*(pLastSlash + 1) = L'\0';
-
-	wcscat_s(szExePath, sizeof(szExePath), L"frog.ico");
 
 	InitializeCriticalSection(&args.critical);
 
@@ -199,9 +207,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	wcApp.style = CS_HREDRAW | CS_VREDRAW;
 
-	wcApp.hIcon = (HICON)LoadImage(NULL, szExePath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+	wcApp.hIcon = (HICON)LoadImage(NULL, L"frog.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
 
-	wcApp.hIconSm = (HICON)LoadImage(NULL, szExePath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
+	wcApp.hIconSm = (HICON)LoadImage(NULL, L"frog.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE);
 
 	wcApp.hCursor = LoadCursor(NULL, IDC_ARROW);
 
@@ -259,6 +267,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	args.mainWindow = hWnd;
 	args.pipe = hPipe;
 	args.status = 0;
+	args.bitmap = 1;
 
 	ReadFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
 
@@ -313,7 +322,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	switch (messg) {
 	case WM_COMMAND:
 	{
-
 		if (wParam == 3)
 		{
 			wchar_t msg[100];
@@ -347,6 +355,10 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	case WM_SIZE:
 
 		InvalidateRect(hWnd, NULL, FALSE);
+		break;
+
+	case WM_ERASEBKGND:
+		return 1;
 		break;
 
 	case WM_KEYDOWN:
@@ -384,6 +396,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 			if (MessageBox(hWnd, L"Game paused!", L"game stopped", MB_OK | MB_ICONASTERISK) == IDOK) {
 				ResumeThread(args.receiver);
 			}
+
 			break;
 		}
 
@@ -400,31 +413,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		EnterCriticalSection(&args.critical);
 
-		int width = 800 / W_GAME;
-		int x = 800 - width;
-		int height = 800 / H_GAME;
-		int y = 800 - height;
-
-		for (int i = H_GAME - 1; i >= 0; i--) {
-			for (int j = W_GAME - 1; j >= 0; j--) {
-
-				RECT cellRect;
-				cellRect.left = x - j * width;
-				cellRect.top = y - i * height;
-				cellRect.right = cellRect.left + width;
-				cellRect.bottom = cellRect.top + height;
-
-				if (i == 0 || i >= args.gameView.num_tracks + 1) {
-					HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
-					FillRect(hdc, &cellRect, blueBrush);
-					DeleteObject(blueBrush);
-				}
-
-			}
-		}
-
-
-		paint_game_zone(hdc, rect);
 
 		LeaveCriticalSection(&args.critical);
 
@@ -448,7 +436,7 @@ void paint_game_zone(HDC hdc, RECT rect) {
 	int width = 800 / W_GAME;
 	int x = 800 - width;
 	int height = 800 / H_GAME;
-	int y = 800 - height;
+	int y = 900;
 
 	for (int i = H_GAME - 1; i >= 0; i--) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
