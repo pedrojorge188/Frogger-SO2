@@ -19,7 +19,7 @@ DWORD WINAPI receive_server_infos(thParams p) {
 	api receive;
 
 	while (1) {
-		
+
 		if (WaitForSingleObject(OpenEventW(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
 
 			if (MessageBox(args.mainWindow, L"Server shutdown", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
@@ -65,6 +65,21 @@ DWORD WINAPI receive_thread(thParams p) {
 	bmpDC[2] = CreateCompatibleDC(hdc);
 	GetObject(hBmp[2], sizeof(BITMAP), &bmp[2]);
 
+	hBmp[3] = (HBITMAP)LoadImage(NULL, TEXT("gameFrog2.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[3], sizeof(bmp[3]), &bmp[3]);
+	bmpDC[3] = CreateCompatibleDC(hdc);
+	GetObject(hBmp[3], sizeof(BITMAP), &bmp[3]);
+
+	hBmp[4] = (HBITMAP)LoadImage(NULL, TEXT("car4.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[4], sizeof(bmp[4]), &bmp[4]);
+	bmpDC[4] = CreateCompatibleDC(hdc);
+	GetObject(hBmp[4], sizeof(BITMAP), &bmp[4]);
+
+	hBmp[5] = (HBITMAP)LoadImage(NULL, TEXT("car3.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+	GetObject(hBmp[5], sizeof(bmp[5]), &bmp[5]);
+	bmpDC[5] = CreateCompatibleDC(hdc);
+
+	GetObject(hBmp[4], sizeof(BITMAP), &bmp[4]);
 	hBmp[6] = (HBITMAP)LoadImage(NULL, TEXT("wall.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 	GetObject(hBmp[6], sizeof(bmp[6]), &bmp[6]);
 	bmpDC[6] = CreateCompatibleDC(hdc);
@@ -73,104 +88,22 @@ DWORD WINAPI receive_thread(thParams p) {
 	HBITMAP hBitmapBuffer = CreateCompatibleBitmap(hdc, rect.right - rect.left, rect.bottom - rect.top);
 	HBITMAP hBitmapOld = (HBITMAP)SelectObject(hdcBuffer, hBitmapBuffer);
 
-	int width = (rect.right - rect.left) / W_GAME;
-	int height = (rect.bottom - rect.top) / H_GAME;
-
-	int x = rect.right - rect.left - width;
-	int y = rect.bottom - rect.top - height;
-
 	while (1) {
 		BOOL pipeHasData = PeekNamedPipe(p.pipe, NULL, 0, NULL, &bytesAvailable, NULL);
 		if (pipeHasData && bytesAvailable > 0) {
 			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine)) {
 				EnterCriticalSection(&p.critical);
 
-				p.gameView.num_tracks = receive.num_tracks;
-				p.myPoints = receive.points;
+					p.gameView.num_tracks = receive.num_tracks;
+					p.myPoints = receive.points;
 
-				for (int i = H_GAME - 1; i >= -1; i--) {
-					for (int j = 0; j < W_GAME; j++) {
-						p.gameView.table[i][j] = receive.table[i][j];
-					}
-				}
-
-				HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
-
-				for (int i = 0; i < H_GAME; i++) {
-					for (int j = W_GAME - 1; j >= 0; j--) {
-						wchar_t c = p.gameView.table[i][j];
-
-						RECT cellRect;
-						cellRect.left = x - j * width;
-						cellRect.top = y - i * height;
-						cellRect.right = cellRect.left + width;
-						cellRect.bottom = cellRect.top + height;
-
-						for (int i = H_GAME - 1; i >= -1; i--) {
-							for (int j = 0; j < W_GAME; j++) {
-								p.gameView.table[i][j] = receive.table[i][j];
-							}
-						}
-
-						switch (c) {
-						case L'S':
-							if (p.bitmap == 1) {
-								SelectObject(bmpDC[0], hBmp[0]);
-								StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[0], 0, 0, bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
-							}
-							break;
-						case L'<':
-							if (p.bitmap == 1) {
-								SelectObject(bmpDC[1], hBmp[1]);
-								StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[1], 0, 0, bmp[1].bmWidth, bmp[1].bmHeight, SRCCOPY);
-							}
-							break;
-						case L'>':
-							if (p.bitmap == 1) {
-								SelectObject(bmpDC[2], hBmp[2]);
-								StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[2], 0, 0, bmp[2].bmWidth, bmp[2].bmHeight, SRCCOPY);
-							}
-							break;
-						case L'O':
-							SelectObject(bmpDC[6], hBmp[6]);
-							StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[6], 0, 0, bmp[6].bmWidth, bmp[6].bmHeight, SRCCOPY);
-							break;
-						default:
-							hBrush = CreateSolidBrush(RGB(0, 0, 0));
-							SetBkColor(hdcBuffer, RGB(0, 0, 0));
-							SetTextColor(hdcBuffer, RGB(0, 0, 0));
-							break;
-						}
-
-						if (hBrush != NULL) {
-							FillRect(hdcBuffer, &cellRect, hBrush);
-							DeleteObject(hBrush);
-							hBrush = NULL;
+					for (int i = H_GAME - 1; i >= -1; i--) {
+						for (int j = 0; j < W_GAME; j++) {
+							p.gameView.table[i][j] = receive.table[i][j];
 						}
 					}
-				}
 
-				for (int i = 0; i < H_GAME; i++) {
-					for (int j = W_GAME - 1; j >= 0; j--) {
-						RECT cellRect;
-						cellRect.left = x - j * width + 1;
-						cellRect.top = y - i * height + 1;
-						cellRect.right = cellRect.left + width;
-						cellRect.bottom = cellRect.top + height;
-
-						if (i == 0 || i >= args.gameView.num_tracks + 1) {
-							HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
-							FillRect(hdcBuffer, &cellRect, blueBrush);
-							DeleteObject(blueBrush);
-
-							if (p.gameView.table[i][j] == L'S') {
-								if (p.bitmap == 1) {
-									StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[0], 0, 0, bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
-								}
-							}
-						}
-					}
-				}
+					paint_game_zone(bmpDC,hBmp,  bmp, &rect ,hdcBuffer,receive);
 
 				BitBlt(hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hdcBuffer, 0, 0, SRCCOPY);
 				LeaveCriticalSection(&p.critical);
@@ -267,7 +200,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	args.mainWindow = hWnd;
 	args.pipe = hPipe;
 	args.status = 0;
-	args.bitmap = 1;
+	args.bitmap = 2;
 
 	ReadFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
 
@@ -320,6 +253,12 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	api send;
 
 	switch (messg) {
+
+	case WM_CREATE:
+		
+		SetWindowPos(hWnd, NULL, 0, 0, 800, 800, SWP_SHOWWINDOW | SWP_NOMOVE | SWP_NOZORDER);
+
+		break;
 	case WM_COMMAND:
 	{
 		if (wParam == 3)
@@ -329,6 +268,26 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 			MessageBox(hWnd, msg, L"Points", MB_OK);
 		}
+		if (wParam == 1)
+		{
+			
+			EnterCriticalSection(&args.critical);
+
+			args.bitmap = 1;
+
+			LeaveCriticalSection(&args.critical);
+
+		}
+		if (wParam == 2)
+		{
+			
+			EnterCriticalSection(&args.critical);
+
+			args.bitmap = 2;
+
+			LeaveCriticalSection(&args.critical);
+		}
+
 		break;
 	}
 	case WM_CLOSE:
@@ -353,8 +312,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		break;
 
 	case WM_SIZE:
-
-		InvalidateRect(hWnd, NULL, FALSE);
+		send.key = 50;
+		WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 		break;
 
 	case WM_ERASEBKGND:
@@ -412,7 +371,29 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		HDC hdc = GetDC(hWnd);
 
 		EnterCriticalSection(&args.critical);
+			
+			int width = 800 / W_GAME;
+			int height = 800 / H_GAME;
 
+			int x = 800 - width;
+			int y = 800 - height;
+			
+			for (int i = 0; i < H_GAME; i++) {
+				for (int j = W_GAME - 1; j >= 0; j--) {
+					RECT cellRect;
+					cellRect.left = x - j * width;
+					cellRect.top = y - i * height;
+					cellRect.right = cellRect.left + width;
+					cellRect.bottom = cellRect.top + height;
+
+					if (i == 0 || i >= args.gameView.num_tracks + 1) {
+						HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
+						FillRect(hdc, &cellRect, blueBrush);
+						DeleteObject(blueBrush);
+	
+					}
+				}
+			}
 
 		LeaveCriticalSection(&args.critical);
 
@@ -431,46 +412,106 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	return(0);
 }
 
-void paint_game_zone(HDC hdc, RECT rect) {
+void paint_game_zone(HDC * bmpDC, HBITMAP * hBmp, BITMAP * bmp, RECT * rect, HDC hdcBuffer, api receive) {
 
-	int width = 800 / W_GAME;
-	int x = 800 - width;
-	int height = 800 / H_GAME;
-	int y = 900;
+	int width = (rect->right - rect->left) / W_GAME;
+	int height = (rect->bottom - rect->top) / H_GAME;
 
-	for (int i = H_GAME - 1; i >= 0; i--) {
+	int x = rect->right - rect->left - width;
+	int y = rect->bottom - rect->top - height;
+
+	HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
+
+	for (int i = 0; i < H_GAME; i++) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
-
 			wchar_t c = args.gameView.table[i][j];
 
 			RECT cellRect;
-			cellRect.left = x - j * width;
-			cellRect.top = y - i * height;
+			cellRect.left = x - j * width - 1;
+			cellRect.top = y - i * height - 1;
 			cellRect.right = cellRect.left + width;
 			cellRect.bottom = cellRect.top + height;
 
-			if (c == L'S') {
-				if (i == 0)
-					SetBkColor(hdc, RGB(0, 0, 255));
-				else
-					SetBkColor(hdc, RGB(0, 0, 0));
-				SetTextColor(hdc, RGB(255, 0, 0));
-				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
-			}
-			else if (c == L'<' || c == L'>') {
-				SetTextColor(hdc, RGB(255, 255, 255));
-				SetBkColor(hdc, RGB(0, 0, 0));
-				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
-
-			}
-			else if (c == L'O') {
-				FillRect(hdc, &cellRect, CreateSolidBrush(RGB(255, 255, 255)));
-				SetTextColor(hdc, RGB(255, 255, 255));
-				SetBkColor(hdc, RGB(255, 255, 255));
-				DrawTextW(hdc, &c, 1, &cellRect, DT_SINGLELINE | DT_CENTER | DT_NOCLIP);
+			for (int i = H_GAME - 1; i >= -1; i--) {
+				for (int j = 0; j < W_GAME; j++) {
+					args.gameView.table[i][j] = receive.table[i][j];
+				}
 			}
 
+			switch (c) {
+			case L'S':
+				if (args.bitmap == 1) {
+					SelectObject(bmpDC[0], hBmp[0]);
+					StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[0], 0, 0, bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
+				}
+				else {
+					SelectObject(bmpDC[3], hBmp[3]);
+					StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[3], 0, 0, bmp[3].bmWidth, bmp[3].bmHeight, SRCCOPY);
+				}
+				break;
+			case L'<':
+				if (args.bitmap == 1) {
+					SelectObject(bmpDC[1], hBmp[1]);
+					StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[1], 0, 0, bmp[1].bmWidth, bmp[1].bmHeight, SRCCOPY);
+				}
+				else {
+					SelectObject(bmpDC[5], hBmp[5]);
+					StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[5], 0, 0, bmp[5].bmWidth, bmp[5].bmHeight, SRCCOPY);
+				}
+				break;
+			case L'>':
+				if (args.bitmap == 1) {
+					SelectObject(bmpDC[2], hBmp[2]);
+					StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[2], 0, 0, bmp[2].bmWidth, bmp[2].bmHeight, SRCCOPY);
+				}
+				else {
+					SelectObject(bmpDC[4], hBmp[4]);
+					StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[4], 0, 0, bmp[4].bmWidth, bmp[4].bmHeight, SRCCOPY);
+				}
+				break;
+			case L'O':
+				SelectObject(bmpDC[6], hBmp[6]);
+				StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[6], 0, 0, bmp[6].bmWidth, bmp[6].bmHeight, SRCCOPY);
+				break;
+			default:
+				hBrush = CreateSolidBrush(RGB(0, 0, 0));
+				SetBkColor(hdcBuffer, RGB(0, 0, 0));
+				SetTextColor(hdcBuffer, RGB(0, 0, 0));
+				break;
+			}
+
+			if (hBrush != NULL) {
+				FillRect(hdcBuffer, &cellRect, hBrush);
+				DeleteObject(hBrush);
+				hBrush = NULL;
+			}
 		}
 	}
+
+	for (int i = 0; i < H_GAME; i++) {
+		for (int j = W_GAME - 1; j >= 0; j--) {
+			RECT cellRect;
+			cellRect.left = x - j * width ;
+			cellRect.top = y - i * height ;
+			cellRect.right = cellRect.left + width;
+			cellRect.bottom = cellRect.top + height;
+
+			if (i == 0 || i >= args.gameView.num_tracks + 1) {
+				HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
+				FillRect(hdcBuffer, &cellRect, blueBrush);
+				DeleteObject(blueBrush);
+
+				if (args.gameView.table[i][j] == L'S') {
+					if (args.bitmap == 1) {
+						StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[0], 0, 0, bmp[0].bmWidth, bmp[0].bmHeight, SRCCOPY);
+					}
+					else {
+						StretchBlt(hdcBuffer, cellRect.left, cellRect.top, width, height, bmpDC[3], 0, 0, bmp[3].bmWidth, bmp[3].bmHeight, SRCCOPY);
+					}
+				}
+			}
+		}
+	}
+
 
 }

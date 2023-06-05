@@ -1,12 +1,12 @@
 ﻿  frog.c
 C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(9,10): warning C4067: tokens inesperados após diretiva de pré-processador - esperado um newline
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(40,26): warning C4030: primeira lista de parâmetros formais maior do que a segunda lista
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(40,26): warning C4028: parâmetro formal 1 diferente da declaração
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(40,9): warning C4273: 'LoadBitmapW': vínculo de dll inconsistente
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(44,26): warning C4030: primeira lista de parâmetros formais maior do que a segunda lista
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(44,26): warning C4028: parâmetro formal 1 diferente da declaração
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.h(44,9): warning C4273: 'LoadBitmapW': vínculo de dll inconsistente
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22000.0\um\winuser.h(10518,1): message : consulte a definição anterior de 'LoadBitmapW'
 C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(19,6): warning C4101: 'receive': variável local não referenciada
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(289,38): warning C4113: 'DWORD (__cdecl *)(thParams)' difere em listas de parâmetro de 'LPTHREAD_START_ROUTINE'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(290,38): warning C4113: 'DWORD (__cdecl *)(thParams)' difere em listas de parâmetro de 'LPTHREAD_START_ROUTINE'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(303,37): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[2]'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(303,28): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(231,38): warning C4113: 'DWORD (__cdecl *)(thParams)' difere em listas de parâmetro de 'LPTHREAD_START_ROUTINE'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(232,38): warning C4113: 'DWORD (__cdecl *)(thParams)' difere em listas de parâmetro de 'LPTHREAD_START_ROUTINE'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(245,37): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[2]'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\Frog\frog.c(245,28): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
   Frog.vcxproj -> C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Frog\x64\Debug\Frog.exe

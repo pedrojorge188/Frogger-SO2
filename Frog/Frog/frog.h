@@ -30,12 +30,16 @@ typedef struct thParams {
 	int myPoints;
 	HANDLE receiver;
 	game prevGameView;
-
+	int bitmap;
+	HDC dBuffer;
+	BITMAP bmp[7];
+	HBITMAP hBmp[7];
+	HDC bmpDC[7];
 }thParams;
 
 
 int out_flag = 0;
-void paint_game_zone(HDC hdc, RECT rect);
+void paint_game_zone(HDC* bmpDC, HBITMAP* hBmp, BITMAP* bmp, RECT * rect, HDC hdcBuffer, api receive);
 void UNICODE_INITIALIZER();
 HBITMAP LoadBitmap(int n);
 

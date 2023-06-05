@@ -4,25 +4,25 @@ C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(50,
 C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(127,18): warning C4133: 'função': tipos incompatíveis - de 'moveParam *' para 'thParams *'
 C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(118,9): warning C4101: 'send': variável local não referenciada
 C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(118,21): warning C4101: 'n': variável local não referenciada
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(223,23): warning C4477: 'wscanf_s': a cadeia de formato '%s' requer um argumento do tipo 'unsigned int', mas um argumento variadic 2 tem o tipo 'size_t'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(223,23): message : esse argumento é usado como um tamanho do buffer
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(358,31): warning C4047: '=': 'HANDLE *' difere em níveis de indireção de 'HANDLE (*)[2]'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(359,43): warning C4047: '=': 'HANDLE *' difere em níveis de indireção de 'HANDLE (*)[8]'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(490,50): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[2]'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(490,41): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(491,63): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[8]'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(491,49): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(372,12): warning C4101: 'hPipe': variável local não referenciada
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(689,11): warning C4013: 'time' indefinido; assumindo extern retornando int
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(710,26): warning C4028: parâmetro formal 1 diferente da declaração
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(866,67): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(859,11): warning C4101: 'dwValue': variável local não referenciada
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(891,70): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(884,11): warning C4101: 'dwValue': variável local não referenciada
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(939,47): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(942,35): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(949,71): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(979,69): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(982,35): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
-C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(989,74): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(222,23): warning C4477: 'wscanf_s': a cadeia de formato '%s' requer um argumento do tipo 'unsigned int', mas um argumento variadic 2 tem o tipo 'size_t'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(222,23): message : esse argumento é usado como um tamanho do buffer
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(357,31): warning C4047: '=': 'HANDLE *' difere em níveis de indireção de 'HANDLE (*)[2]'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(358,43): warning C4047: '=': 'HANDLE *' difere em níveis de indireção de 'HANDLE (*)[8]'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(489,50): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[2]'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(489,41): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(490,63): warning C4047: 'função': 'const HANDLE *' difere em níveis de indireção de 'HANDLE (*)[8]'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(490,49): warning C4022: 'WaitForMultipleObjects': incompatibilidade de ponteiro para parâmetro real 2
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(371,12): warning C4101: 'hPipe': variável local não referenciada
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(688,11): warning C4013: 'time' indefinido; assumindo extern retornando int
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(709,26): warning C4028: parâmetro formal 1 diferente da declaração
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(865,67): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(858,11): warning C4101: 'dwValue': variável local não referenciada
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(890,70): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(883,11): warning C4101: 'dwValue': variável local não referenciada
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(938,47): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(941,35): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(948,71): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(978,69): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(981,35): warning C4133: 'função': tipos incompatíveis - de 'TCHAR *' para 'const char *'
+C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\server.c(988,74): warning C4133: 'função': tipos incompatíveis - de 'DWORD *' para 'const BYTE *'
   Server.vcxproj -> C:\Users\pedro\Desktop\ISEC\SO2\TrabalhoPrático\Frogger-SO2\Server\x64\Debug\Server.exe

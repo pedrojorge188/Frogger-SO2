@@ -122,7 +122,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
 
         EnterCriticalSection(&p->critical);
 
-        Sleep(p->gameData->track_speed[p->track] * 300);
+        Sleep(p->gameData->track_speed[p->track] * 400);
 
         moveCars(p);
 
@@ -156,8 +156,6 @@ DWORD WINAPI cmd_receiver(LPVOID lpParam) {
         cmd_status = 3 -> stopcars
         cmd_status = 4 -> resume car movement
     */
-
-
 
     while (out_flag == 0) {
 
@@ -215,6 +213,7 @@ DWORD WINAPI input_thread(LPVOID lpParam) {
 
     TCHAR command[50];
     INT value;
+
 
     while (1) {
 
@@ -823,7 +822,7 @@ int FillGameDefaults(game* g) {
     srand(time(NULL));
     int direction = 0;
 
-    g->n_cars_per_track = rand() % MAX_VEHICLES;
+    g->n_cars_per_track = rand() % 5;
     if (g->n_cars_per_track == 0)
         g->n_cars_per_track = DEFAULT;
 
