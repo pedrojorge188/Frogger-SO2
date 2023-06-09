@@ -47,18 +47,25 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
 
             if (receive.key == 1) {
 
-                _tprintf(L"[FROG %d] Disconnected!\n", id + 1, receive.key);
+                _tprintf(L"[FROG %d] Disconnected!\n", id + 1);
 
                 removeFrog(p->gameData, id);
                 WritePipe(p->hPipes, p->gameData);
                 copyGame(p->gameData);
                 SetEvent(evt);
 
-                //FlushFileBuffers(&p->hPipes[id].hPipe);
-                //DisconnectNamedPipe(p->hPipes[id].hPipe);
-                //SetEvent(p->overlapEvents[id]);
-   
+                DisconnectNamedPipe(p->hPipes[id].hPipe);
+
+                CloseHandle(p->hPipes[id].hPipe);
+
+
+                p->hPipes[id].hPipe = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                    PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE,
+                    PIPE_UNLIMITED_INSTANCES, sizeof(api), sizeof(api), 1000, NULL);
+
                 p->hPipes[id].active = FALSE;
+
+                SetEvent(p->overlapEvents[id]);
 
                 ExitThread(1);
 
@@ -122,7 +129,7 @@ DWORD WINAPI move_cars(LPVOID lpParam) {
 
         EnterCriticalSection(&p->critical);
 
-        Sleep(p->gameData->track_speed[p->track] * 400);
+        Sleep(p->gameData->track_speed[p->track] * 150);
 
         moveCars(p);
 
@@ -394,7 +401,6 @@ int _tmain(int argc, TCHAR* argv[]) {
 
     }
 
-
     hThreads[0] = CreateThread(NULL, 0, input_thread, &structTh, 0, &dwIDThreads[0]);
     hThreads[1] = CreateThread(NULL, 0, cmd_receiver, &structTh, 0, &dwIDThreads[1]);
 
@@ -420,65 +426,67 @@ int _tmain(int argc, TCHAR* argv[]) {
         offset = WaitForMultipleObjects(2, structTh.overlapEvents, FALSE, INFINITE);
         index = offset - WAIT_OBJECT_0;
 
-        if (index >= 0) {
-
             if (GetOverlappedResult(structTh.hPipes[index].hPipe, &structTh.hPipes[index].overlap, &nBytes, FALSE)) {
 
-                start_info.msg = gameData.mode;
+                     if (nBytes == 0) {
+                         start_info.msg = gameData.mode;
 
-                ResetEvent(structTh.overlapEvents[index]);
+                         ResetEvent(structTh.overlapEvents[index]);
 
+                         WriteFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
 
-                WriteFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
+                         ReadFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
 
-                ReadFile(structTh.hPipes[index].hPipe, &start_info, sizeof(start_info), 0, NULL);
+                         _tprintf(L"\n[FROG %d] connected!\n", index + 1);
 
-                _tprintf(L"\n[FROG %d] connected!\n", index + 1);
+                         EnterCriticalSection(&structTh.critical);
 
-                EnterCriticalSection(&structTh.critical);
+                         structTh.gameData->mode = start_info.msg;
 
-                structTh.gameData->mode = start_info.msg;
+                         if (structTh.frogs_connected == 1)
 
-                if (structTh.frogs_connected == 1)
+                             structTh.frogs_connected = 0;
+                         else
+                             structTh.frogs_connected = 1;
 
-                    structTh.frogs_connected = 0;
-                else
-                    structTh.frogs_connected = 1;
+                         if (structTh.gameData->mode == 1) {
 
-                if (structTh.gameData->mode == 1) {
+                             structTh.gameData->mode = 1;
+                             for (int i = 0; i < gameData.num_tracks; i++) {
+                                 ResumeThread(hMovementCars[i]);
+                             }
 
-                    structTh.gameData->mode = 1;
-                    for (int i = 0; i < gameData.num_tracks; i++) {
-                        ResumeThread(hMovementCars[i]);
-                    }
+                         }
 
-                }
+                         if (structTh.frogs_connected == 1) {
 
-                if (structTh.frogs_connected == 1) {
+                             structTh.gameData->mode = 2;
+                             for (int i = 0; i < gameData.num_tracks; i++) {
+                                 ResumeThread(hMovementCars[i]);
+                             }
+                         }
 
-                    structTh.gameData->mode = 2;
-                    for (int i = 0; i < gameData.num_tracks; i++) {
-                        ResumeThread(hMovementCars[i]);
-                    }
-                }
-
-                structTh.hPipes[index].active = TRUE;
-
-         
-
-                for (int i = 0; i < gameData.num_tracks; i++) {
-                    structMove[i].hPipes[index] = structTh.hPipes[index];
-                    structMove[i].frogs_connected = structTh.frogs_connected;
-                }
-
-                CreateThread(NULL, 0, cliente_manager, &structTh, 0, NULL);
-
-                setFrog(structTh.gameData, index);
-
-                LeaveCriticalSection(&structTh.critical);
+                         structTh.hPipes[index].active = TRUE;
 
 
-            }
+                         for (int i = 0; i < gameData.num_tracks; i++) {
+                             structMove[i].hPipes[index] = structTh.hPipes[index];
+                             structMove[i].frogs_connected = structTh.frogs_connected;
+                         }
+
+                         CreateThread(NULL, 0, cliente_manager, &structTh, 0, NULL);
+
+                         setFrog(structTh.gameData, index);
+
+                         LeaveCriticalSection(&structTh.critical);
+                     }
+                     else {
+
+                         ResetEvent(structTh.overlapEvents[index]);
+
+                         ConnectNamedPipe(structTh.hPipes[index].hPipe, &structTh.hPipes[index].overlap);
+                     }
+               
 
         }
 
@@ -979,6 +987,7 @@ game FillRegistryValues(TCHAR* valsarg[]) {
             dwValue = VEL_DEFAULT;
         else
             dwValue = atoi(valsarg[2]);
+
 
         gameData.vehicle_speed = (INT)dwValue;
 

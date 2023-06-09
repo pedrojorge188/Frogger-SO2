@@ -200,7 +200,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	args.mainWindow = hWnd;
 	args.pipe = hPipe;
 	args.status = 0;
-	args.bitmap = 2;
+	args.bitmap = 1;
 
 	ReadFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
 
