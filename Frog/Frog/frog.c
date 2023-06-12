@@ -20,7 +20,7 @@ DWORD WINAPI receive_server_infos(thParams p) {
 
 	while (1) {
 
-		if (WaitForSingleObject(OpenEventW(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
+		if (WaitForSingleObject(OpenEvent(EVENT_ALL_ACCESS, FALSE, SERVER_SHUTDOWN), INFINITE) == WAIT_OBJECT_0) {
 
 			if (MessageBox(args.mainWindow, L"Server shutdown", L"Server not running", MB_OK | MB_ICONERROR) == IDOK) {
 				exit(-1);
@@ -31,10 +31,10 @@ DWORD WINAPI receive_server_infos(thParams p) {
 
 	ExitThread(1);
 }
+
+
+
 DWORD WINAPI receive_thread(thParams p) {
-	BITMAP bmp[7];
-	HBITMAP hBmp[7];
-	HDC bmpDC[7];
 
 	DWORD bytesAvailable = 0;
 	api receive = { 0 };
@@ -48,45 +48,12 @@ DWORD WINAPI receive_thread(thParams p) {
 
 	GetClientRect(p.mainWindow, &rect);
 
-	HDC hdcBuffer = CreateCompatibleDC(hdc);
-
-	hBmp[0] = (HBITMAP)LoadImage(NULL, TEXT("gameFrog.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[0], sizeof(bmp[0]), &bmp[0]);
-	bmpDC[0] = CreateCompatibleDC(hdc);
-	GetObject(hBmp[0], sizeof(BITMAP), &bmp[0]);
-
-	hBmp[1] = (HBITMAP)LoadImage(NULL, TEXT("car1.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[1], sizeof(bmp[1]), &bmp[1]);
-	bmpDC[1] = CreateCompatibleDC(hdc);
-	GetObject(hBmp[1], sizeof(BITMAP), &bmp[1]);
-
-	hBmp[2] = (HBITMAP)LoadImage(NULL, TEXT("car2.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[2], sizeof(bmp[2]), &bmp[2]);
-	bmpDC[2] = CreateCompatibleDC(hdc);
-	GetObject(hBmp[2], sizeof(BITMAP), &bmp[2]);
-
-	hBmp[3] = (HBITMAP)LoadImage(NULL, TEXT("gameFrog2.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[3], sizeof(bmp[3]), &bmp[3]);
-	bmpDC[3] = CreateCompatibleDC(hdc);
-	GetObject(hBmp[3], sizeof(BITMAP), &bmp[3]);
-
-	hBmp[4] = (HBITMAP)LoadImage(NULL, TEXT("car4.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[4], sizeof(bmp[4]), &bmp[4]);
-	bmpDC[4] = CreateCompatibleDC(hdc);
-	GetObject(hBmp[4], sizeof(BITMAP), &bmp[4]);
-
-	hBmp[5] = (HBITMAP)LoadImage(NULL, TEXT("car3.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[5], sizeof(bmp[5]), &bmp[5]);
-	bmpDC[5] = CreateCompatibleDC(hdc);
-
-	GetObject(hBmp[4], sizeof(BITMAP), &bmp[4]);
-	hBmp[6] = (HBITMAP)LoadImage(NULL, TEXT("wall.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-	GetObject(hBmp[6], sizeof(bmp[6]), &bmp[6]);
-	bmpDC[6] = CreateCompatibleDC(hdc);
-	GetObject(hBmp[6], sizeof(BITMAP), &bmp[6]);
+	EnterCriticalSection(&p.critical);
+		args.hdcBuffer = CreateCompatibleDC(hdc);
+	LeaveCriticalSection(&p.critical);
 
 	HBITMAP hBitmapBuffer = CreateCompatibleBitmap(hdc, rect.right - rect.left, rect.bottom - rect.top);
-	HBITMAP hBitmapOld = (HBITMAP)SelectObject(hdcBuffer, hBitmapBuffer);
+	HBITMAP hBitmapOld = (HBITMAP)SelectObject(args.hdcBuffer, hBitmapBuffer);
 
 	while (1) {
 		BOOL pipeHasData = PeekNamedPipe(p.pipe, NULL, 0, NULL, &bytesAvailable, NULL);
@@ -94,26 +61,28 @@ DWORD WINAPI receive_thread(thParams p) {
 			if (ReadFileEx(p.pipe, &receive, sizeof(receive), &overlapped, &ReadCompletionRoutine)) {
 				EnterCriticalSection(&p.critical);
 
-					p.gameView.num_tracks = receive.num_tracks;
-					p.myPoints = receive.points;
+				p.gameView.num_tracks = receive.num_tracks;
+				p.myPoints = receive.points;
 
-					for (int i = H_GAME - 1; i >= -1; i--) {
-						for (int j = 0; j < W_GAME; j++) {
-							p.gameView.table[i][j] = receive.table[i][j];
-						}
+				for (int i = H_GAME - 1; i >= -1; i--) {
+					for (int j = 0; j < W_GAME; j++) {
+						p.gameView.table[i][j] = receive.table[i][j];
 					}
+				}
+				
 
-					paint_game_zone(bmpDC,hBmp,  bmp, &rect ,hdcBuffer,receive);
+				paint_game_zone(args.bmpDC, args.hBmp, args.bmp, &rect, args.hdcBuffer, receive);
 
-				BitBlt(hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hdcBuffer, 0, 0, SRCCOPY);
+				InvalidateRect(p.mainWindow, NULL, FALSE);
+
 				LeaveCriticalSection(&p.critical);
 			}
 		}
 	}
 
-	SelectObject(hdcBuffer, hBitmapOld);
+	SelectObject(args.hdcBuffer, hBitmapOld);
 	DeleteObject(hBitmapBuffer);
-	DeleteDC(hdcBuffer);
+	DeleteDC(args.hdcBuffer);
 
 	ReleaseDC(p.mainWindow, hdc);
 
@@ -210,9 +179,11 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 		if (result == IDYES) {
 			initialize_game.msg = 2;
+			args.mode = 2;
 		}
 		else if (result = IDNO) {
 			initialize_game.msg = 1;
+			args.mode = 1;
 		}
 
 		WriteFile(hPipe, &initialize_game, sizeof(initialize_game), 0, NULL);
@@ -254,11 +225,70 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 	switch (messg) {
 
+	case WM_ERASEBKGND:
+	{
+		return -1;
+	}
+
 	case WM_CREATE:
-		
+
 		SetWindowPos(hWnd, NULL, 0, 0, 800, 800, SWP_SHOWWINDOW | SWP_NOMOVE | SWP_NOZORDER);
 
+		hdc = BeginPaint(hWnd, &ps);
+
+		LPCWSTR text = L"Waiting server . . .";
+
+		RECT clientRect;
+		GetClientRect(hWnd, &clientRect);
+
+		int centerX = (clientRect.right - clientRect.left) / 2;
+		int centerY = (clientRect.bottom - clientRect.top) / 2;
+
+		int textX = centerX - (wcslen(text) * 5);
+		int textY = centerY - 10; 
+
+		SetTextColor(hdc, RGB(0, 0, 0));
+		TextOut(hdc, textX, textY, text, wcslen(text));
+
+		GetClientRect(hWnd, &rect);
+
+		args.hBmp[0] = (HBITMAP)LoadImage(NULL, TEXT("gameFrog.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[0], sizeof(args.bmp[0]), &args.bmp[0]);
+		args.bmpDC[0] = CreateCompatibleDC(hdc);
+		GetObject(args.hBmp[0], sizeof(BITMAP), &args.bmp[0]);
+
+		args.hBmp[1] = (HBITMAP)LoadImage(NULL, TEXT("car1.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[1], sizeof(args.bmp[1]), &args.bmp[1]);
+		args.bmpDC[1] = CreateCompatibleDC(hdc);
+		GetObject(args.hBmp[1], sizeof(BITMAP), &args.bmp[1]);
+
+		args.hBmp[2] = (HBITMAP)LoadImage(NULL, TEXT("car2.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[2], sizeof(args.bmp[2]), &args.bmp[2]);
+		args.bmpDC[2] = CreateCompatibleDC(hdc);
+		GetObject(args.hBmp[2], sizeof(BITMAP), &args.bmp[2]);
+
+		args.hBmp[3] = (HBITMAP)LoadImage(NULL, TEXT("gameFrog2.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[3], sizeof(args.bmp[3]), &args.bmp[3]);
+		args.bmpDC[3] = CreateCompatibleDC(hdc);
+		GetObject(args.hBmp[3], sizeof(BITMAP), &args.bmp[3]);
+
+		args.hBmp[4] = (HBITMAP)LoadImage(NULL, TEXT("car4.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[4], sizeof(args.bmp[4]), &args.bmp[4]);
+		args.bmpDC[4] = CreateCompatibleDC(hdc);
+		GetObject(args.hBmp[4], sizeof(BITMAP), &args.bmp[4]);
+
+		args.hBmp[5] = (HBITMAP)LoadImage(NULL, TEXT("car3.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[5], sizeof(args.bmp[5]), &args.bmp[5]);
+		args.bmpDC[5] = CreateCompatibleDC(hdc);
+
+		GetObject(args.hBmp[4], sizeof(BITMAP), &args.bmp[4]);
+		args.hBmp[6] = (HBITMAP)LoadImage(NULL, TEXT("wall.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		GetObject(args.hBmp[6], sizeof(args.bmp[6]), &args.bmp[6]);
+		args.bmpDC[6] = CreateCompatibleDC(hdc);
+		GetObject(args.hBmp[6], sizeof(BITMAP), &args.bmp[6]);
+	
 		break;
+
 	case WM_COMMAND:
 	{
 		if (wParam == 3)
@@ -270,7 +300,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		}
 		if (wParam == 1)
 		{
-			
+
 			EnterCriticalSection(&args.critical);
 
 			args.bitmap = 1;
@@ -280,7 +310,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		}
 		if (wParam == 2)
 		{
-			
+
 			EnterCriticalSection(&args.critical);
 
 			args.bitmap = 2;
@@ -309,6 +339,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		send.key = -1;
 		WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
+		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 
 	case WM_SIZE:
@@ -316,9 +347,6 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 		WriteFileEx(args.pipe, &send, sizeof(send), &overlapped, &WriteCompletionRoutine);
 		break;
 
-	case WM_ERASEBKGND:
-		return 1;
-		break;
 
 	case WM_KEYDOWN:
 
@@ -372,28 +400,7 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 
 		EnterCriticalSection(&args.critical);
 			
-			int width = 800 / W_GAME;
-			int height = 800 / H_GAME;
-
-			int x = 800 - width;
-			int y = 800 - height;
-			
-			for (int i = 0; i < H_GAME; i++) {
-				for (int j = W_GAME - 1; j >= 0; j--) {
-					RECT cellRect;
-					cellRect.left = x - j * width;
-					cellRect.top = y - i * height;
-					cellRect.right = cellRect.left + width;
-					cellRect.bottom = cellRect.top + height;
-
-					if (i == 0 || i >= args.gameView.num_tracks + 1) {
-						HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
-						FillRect(hdc, &cellRect, blueBrush);
-						DeleteObject(blueBrush);
-	
-					}
-				}
-			}
+			BitBlt(hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, args.hdcBuffer, 0, 0, SRCCOPY);
 
 		LeaveCriticalSection(&args.critical);
 
@@ -412,7 +419,8 @@ LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lPara
 	return(0);
 }
 
-void paint_game_zone(HDC * bmpDC, HBITMAP * hBmp, BITMAP * bmp, RECT * rect, HDC hdcBuffer, api receive) {
+void paint_game_zone(HDC* bmpDC, HBITMAP* hBmp, BITMAP* bmp, RECT* rect, HDC hdcBuffer, api receive) {
+
 
 	int width = (rect->right - rect->left) / W_GAME;
 	int height = (rect->bottom - rect->top) / H_GAME;
@@ -491,8 +499,8 @@ void paint_game_zone(HDC * bmpDC, HBITMAP * hBmp, BITMAP * bmp, RECT * rect, HDC
 	for (int i = 0; i < H_GAME; i++) {
 		for (int j = W_GAME - 1; j >= 0; j--) {
 			RECT cellRect;
-			cellRect.left = x - j * width ;
-			cellRect.top = y - i * height ;
+			cellRect.left = x - j * width;
+			cellRect.top = y - i * height;
 			cellRect.right = cellRect.left + width;
 			cellRect.bottom = cellRect.top + height;
 
@@ -512,6 +520,19 @@ void paint_game_zone(HDC * bmpDC, HBITMAP * hBmp, BITMAP * bmp, RECT * rect, HDC
 			}
 		}
 	}
+
+	wchar_t msg[100];
+	int passes = args.myPoints / 10;
+	swprintf(msg, 100, L"Points: %d  \t Level: %d", args.myPoints, passes);
+
+	RECT points;
+	int centerXt = 125;
+	int textXt = centerXt - (wcslen(msg) * 5);
+	int textYt = 25;
+	SetBkColor(args.hdcBuffer, RGB(0, 0, 255));
+	SetTextColor(args.hdcBuffer, RGB(255, 255, 0));
+	TextOut(args.hdcBuffer, textXt, textYt, msg, wcslen(msg));
+
 
 
 }

@@ -49,6 +49,7 @@ DWORD WINAPI cliente_manager(LPVOID lpParam) {
 
                 _tprintf(L"[FROG %d] Disconnected!\n", id + 1);
 
+                p->gameData->frogs[id].points = 0;
                 removeFrog(p->gameData, id);
                 WritePipe(p->hPipes, p->gameData);
                 copyGame(p->gameData);
